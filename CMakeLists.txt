@@ -44,6 +44,8 @@ else()
 endif()
 find_package(JNI REQUIRED)
 
+add_subdirectory(bfwrapper)
+
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 file(GLOB PROJECT_SOURCES LIST_DIRECTORIES false CONFIGURE_DEPENDS
