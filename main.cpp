@@ -65,6 +65,8 @@ int main(int argc, char* argv[])
         qCritical() << "can NOT find bioformats class";
     else
     {
+        // https://docs.oracle.com/en/java/javase/23/docs/specs/jni/types.html
+        // unzip the `bfwrapper.jar` and use `javap -s -public .\bfwrapper\bfwrapper.class` to obtain the api description
         if (jmethodID constructor = env->GetMethodID(cls, "<init>", "()V"); constructor == nullptr)
             qCritical() << "can NOT get constructor";
         else
