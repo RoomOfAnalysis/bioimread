@@ -1,30 +1,8 @@
 #include <jni.h>
 #include <iostream>
-#include <filesystem>
-#include <cstdlib>
 
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <unistd.h>
-#endif // _WIN32
-
+#include "jvmwrapper.hpp"
 #include "stopwatch.hpp"
-
-typedef int(__stdcall* JNI_CreateJavaVMFunc)(JavaVM** pvm, JNIEnv** penv, void* args);
-
-std::string getExecutableDir()
-{
-    char buffer[1024];
-#ifdef _WIN32
-    GetModuleFileNameA(nullptr, buffer, sizeof(buffer));
-#else
-    ssize_t len = readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
-    if (len != -1) buffer[len] = '\0';
-#endif
-    std::filesystem::path exe_path(buffer);
-    return exe_path.parent_path().string();
-}
 
 int main(int argc, char* argv[])
 {
@@ -34,58 +12,10 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    std::string java_home = std::getenv("JAVA_HOME");
-    auto jvm_dll_path = java_home + "/bin/server/jvm.dll";
-    HMODULE jvm_dll = LoadLibraryA(jvm_dll_path.c_str());
-    if (jvm_dll == nullptr)
-    {
-        std::cerr << "failed to load jvm.dll at: " << jvm_dll_path << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    JNI_CreateJavaVMFunc Dll_JNI_CreateJavaVM = (JNI_CreateJavaVMFunc)GetProcAddress(jvm_dll, "JNI_CreateJavaVM");
-    if (Dll_JNI_CreateJavaVM == 0)
-    {
-        std::cerr << "failed to get jni create jvm func" << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
     const char* filePath = argv[1];
 
-    // Get the directory of the executable
-    std::string exe_dir = getExecutableDir();
-
-#ifdef _MSC_VER
-    // Construct the base path for the java directory located at one level up for MSVC build
-    std::filesystem::path java_dir = std::filesystem::path(exe_dir).parent_path() / "java";
-#else
-    // If compiling with GCC or another compiler, the java directory is in the same directory as the executable
-    std::filesystem::path javaDir = std::filesystem::path(exe_dir) / "java";
-#endif
-
-    // Construct the classpath using the java_dir
-    std::string java_class_path =
-        "-Djava.class.path=" + java_dir.string() + "/bfwrapper.jar;" + java_dir.string() + "/bioformats_package.jar;";
-
-    // JNI initialization
-    JavaVMOption options[1];
-    options[0].optionString = const_cast<char*>(java_class_path.c_str());
-
-    JavaVMInitArgs vm_args;
-    vm_args.version = JNI_VERSION_1_8;
-    vm_args.nOptions = 1;
-    vm_args.options = options;
-    vm_args.ignoreUnrecognized = false;
-
-    JavaVM* jvm;
-    JNIEnv* env;
-    jint rc = Dll_JNI_CreateJavaVM(&jvm, &env, &vm_args);
-    if (rc != JNI_OK)
-    {
-        std::cerr << "Error creating JVM: " << rc << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    else
-        std::cout << "JVM succesfully created." << std::endl;
+    auto* jvm_wrapper = JVMWrapper::getInstance();
+    auto* env = jvm_wrapper->m_jni_env_ptr;
 
     // set log level
     // https://bio-formats.readthedocs.io/en/v8.0.0/developers/logging.html
@@ -93,7 +23,7 @@ int main(int argc, char* argv[])
     if (log_cls == nullptr)
     {
         std::cerr << "Error: bioformats package not loaded." << std::endl;
-        jvm->DestroyJavaVM();
+        jvm_wrapper->destroyJVM();
         exit(EXIT_FAILURE);
     }
     jstring root_logger_name = (jstring)env->GetStaticObjectField(
@@ -113,7 +43,7 @@ int main(int argc, char* argv[])
     if (wrapper_cls == nullptr)
     {
         std::cerr << "Error: bfwrapper Class not found." << std::endl;
-        jvm->DestroyJavaVM();
+        jvm_wrapper->destroyJVM();
         exit(EXIT_FAILURE);
     }
 
@@ -127,7 +57,7 @@ int main(int argc, char* argv[])
     if (!succeed)
     {
         std::cerr << "Error: bfwrapper setId failed." << std::endl;
-        jvm->DestroyJavaVM();
+        jvm_wrapper->destroyJVM();
         exit(EXIT_FAILURE);
     }
 
@@ -171,7 +101,7 @@ int main(int argc, char* argv[])
     if (series_ != series)
     {
         std::cerr << "Error: bfwrapper setSeries(" << series << ") but getSeries " << series_ << std::endl;
-        jvm->DestroyJavaVM();
+        jvm_wrapper->destroyJVM();
         exit(EXIT_FAILURE);
     }
 
@@ -212,6 +142,6 @@ int main(int argc, char* argv[])
         std::cout << "read " << total_bytes << " bytes with openBytes" << std::endl;
     }
 
-    jvm->DestroyJavaVM();
+    jvm_wrapper->destroyJVM();
     return 0;
 }

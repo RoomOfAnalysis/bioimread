@@ -25,6 +25,7 @@ add_jar(${PROJECT_NAME}
 )
 
 add_executable(showinfo
+    jvmwrapper.cpp jvmwrapper.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/showinfo.cpp
 )
 add_dependencies(showinfo
