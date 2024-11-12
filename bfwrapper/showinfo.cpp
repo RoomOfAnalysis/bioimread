@@ -15,7 +15,7 @@ int main(int argc, char* argv[])
     const char* filePath = argv[1];
 
     auto* jvm_wrapper = JVMWrapper::getInstance();
-    auto* env = jvm_wrapper->m_jni_env_ptr;
+    auto* env = jvm_wrapper->getJNIEnv();
 
     // set log level
     // https://bio-formats.readthedocs.io/en/v8.0.0/developers/logging.html
