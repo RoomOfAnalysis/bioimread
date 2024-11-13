@@ -1,8 +1,19 @@
 #include <jni.h>
 #include <iostream>
+#include <cassert>
+
+#include <opencv2/highgui.hpp>
 
 #include "jvmwrapper.hpp"
 #include "stopwatch.hpp"
+
+std::string pixelTypeStr(jint pixelType)
+{
+    static std::string typeStr[9]{"int8", "uint8", "int16", "uint16", "int32", "uint32", "float", "double", "bit"};
+
+    assert(0 <= pixelType && pixelType <= 8);
+    return typeStr[pixelType];
+}
 
 int main(int argc, char* argv[])
 {
@@ -110,9 +121,52 @@ int main(int argc, char* argv[])
     jint planes = env->CallIntMethod(wrapper_instance, getImageCountMethod);
     std::cout << "getImageCount: " << planes << std::endl;
 
+    // getPixelType()
+    jmethodID getPixelTypeMethod = env->GetMethodID(wrapper_cls, "getPixelType", "()I");
+    jint pixelType = env->CallIntMethod(wrapper_instance, getPixelTypeMethod);
+    std::cout << "getPixelType: " << pixelTypeStr(pixelType) << std::endl;
+
+    // getSizeX()
+    jmethodID getSizeXMethod = env->GetMethodID(wrapper_cls, "getSizeX", "()I");
+    jint sizeX = env->CallIntMethod(wrapper_instance, getSizeXMethod);
+    std::cout << "getSizeX: " << sizeX << std::endl;
+
+    // getSizeY()
+    jmethodID getSizeYMethod = env->GetMethodID(wrapper_cls, "getSizeY", "()I");
+    jint sizeY = env->CallIntMethod(wrapper_instance, getSizeYMethod);
+    std::cout << "getSizeY: " << sizeY << std::endl;
+
+    // getRGBChannelCount()
+    jmethodID getRGBChannelCountMethod = env->GetMethodID(wrapper_cls, "getRGBChannelCount", "()I");
+    jint channelCount = env->CallIntMethod(wrapper_instance, getRGBChannelCountMethod);
+    std::cout << "getRGBChannelCount: " << channelCount << std::endl;
+
+    // getBytesPerPixel()
+    jmethodID getBytesPerPixelMethod = env->GetMethodID(wrapper_cls, "getBytesPerPixel", "()I");
+    jint bytesPerPixel = env->CallIntMethod(wrapper_instance, getBytesPerPixelMethod);
+    std::cout << "getBytesPerPixel: " << bytesPerPixel << std::endl;
+
+    // getPlaneSize()
+    jmethodID getPlaneSizeMethod = env->GetMethodID(wrapper_cls, "getPlaneSize", "()I");
+    jint planeSize = env->CallIntMethod(wrapper_instance, getPlaneSizeMethod);
+    std::cout << "getPlaneSize: " << planeSize << std::endl;
+
+    // getChannelColor()
+    jmethodID getChannelColorMethod = env->GetMethodID(wrapper_cls, "getChannelColor", "(I)Ljava/lang/String;");
+    jstring channelColor0 = (jstring)env->CallObjectMethod(wrapper_instance, getChannelColorMethod, 0);
+    const char* channelColor0Chars = env->GetStringUTFChars(channelColor0, nullptr);
+    std::string channelColor0Str = channelColor0Chars;
+    std::cout << channelColor0Str << std::endl;
+    env->ReleaseStringUTFChars(xmldata, channelColor0Chars);
+
+    // single plane image bytes
+    auto* bytes = new char[planeSize];
+
+    cv::namedWindow("plane");
+#if 1
     // openBytes
     {
-        TIME_BLOCK("openBytes");
+        //TIME_BLOCK("openBytes");
 
         size_t total_bytes{};
 
@@ -122,16 +176,24 @@ int main(int argc, char* argv[])
             jbyteArray byteArray = (jbyteArray)env->CallObjectMethod(wrapper_instance, openBytesMethod, plane);
             if (byteArray != nullptr)
             {
-                // TODO: direct buffer to avoid copy
+                // direct buffer from C to java caused error at https://github.com/ome/bioformats/blob/develop/components/formats-bsd/src/loci/formats/ImageTools.java#L224
+                // java.lang.ArrayStoreException: arraycopy: destination type java.nio.DirectByteBuffer is not an array
+                //         at java.base/java.lang.System.arraycopy(Native Method)
+                //         at loci.formats.ImageTools.splitChannels(ImageTools.java:224)
                 jsize len = env->GetArrayLength(byteArray);
                 jbyte* body = env->GetByteArrayElements(byteArray, nullptr);
-                auto* bytes = new unsigned char[len];
+
                 std::memcpy(bytes, body, sizeof(jbyte) * len);
 
                 total_bytes += len;
 
-                delete[] bytes;
                 env->ReleaseByteArrayElements(byteArray, body, JNI_ABORT);
+
+                // show image
+                //\note opencv requires little endian... may need swap byte endianess first
+                auto img = cv::Mat(sizeY, sizeX, CV_8UC1, bytes);
+                cv::imshow("plane", img);
+                if (cv::waitKey(0) == 'q') break;
             }
             else
             {
@@ -139,8 +201,10 @@ int main(int argc, char* argv[])
                 break;
             }
         }
+        delete[] bytes;
         std::cout << "read " << total_bytes << " bytes with openBytes" << std::endl;
     }
+#endif
 
     jvm_wrapper->destroyJVM();
     return 0;

@@ -1,7 +1,10 @@
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Arrays;
+import loci.common.DataTools;
 import loci.common.services.ServiceFactory;
 import loci.common.xml.XMLTools;
+import loci.formats.FormatTools;
 import loci.formats.ImageReader;
 import loci.formats.meta.IMetadata;
 import loci.formats.meta.MetadataRetrieve;
@@ -53,7 +56,7 @@ public class bfwrapper implements Closeable {
                     ", sizeZ=" + reader.getSizeZ() +
                     ", sizeC=" + reader.getSizeC() +
                     ", sizeT=" + reader.getSizeT() +
-                    ", imageName=" + meta.getImageName(0);
+                    ", imageName=" + meta.getImageName(0); // https://javadoc.scijava.org/Bio-Formats/loci/formats/meta/MetadataRetrieve.html
             return info;
         } catch (Exception e) {
             e.printStackTrace();
@@ -72,7 +75,7 @@ public class bfwrapper implements Closeable {
         }
     }
 
-    int getImageCount() {
+    public int getImageCount() {
         return reader.getImageCount();
     }
 
@@ -94,32 +97,32 @@ public class bfwrapper implements Closeable {
      * This method returns true if and only if {@link #getRGBChannelCount()}
      * returns a value greater than 1.
      */
-    boolean isRGB() {
+    public boolean isRGB() {
         return reader.isRGB();
     }
 
     /** Gets the size of the X dimension. */
-    int getSizeX() {
+    public int getSizeX() {
         return reader.getSizeX();
     }
 
     /** Gets the size of the Y dimension. */
-    int getSizeY() {
+    public int getSizeY() {
         return reader.getSizeY();
     }
 
     /** Gets the size of the Z dimension. */
-    int getSizeZ() {
+    public int getSizeZ() {
         return reader.getSizeZ();
     }
 
     /** Gets the size of the C dimension. */
-    int getSizeC() {
+    public int getSizeC() {
         return reader.getSizeC();
     }
 
     /** Gets the size of the T dimension. */
-    int getSizeT() {
+    public int getSizeT() {
         return reader.getSizeT();
     }
 
@@ -130,7 +133,7 @@ public class bfwrapper implements Closeable {
      * @return the pixel type as an enumeration from {@link FormatTools}
      *         <i>static</i> pixel types such as {@link FormatTools#INT8}.
      */
-    int getPixelType() {
+    public int getPixelType() {
         return reader.getPixelType();
     }
 
@@ -139,7 +142,7 @@ public class bfwrapper implements Closeable {
      * pixel is always less than or equal to the number of bits per pixel
      * that correspond to {@link #getPixelType()}.
      */
-    int getBitsPerPixel() {
+    public int getBitsPerPixel() {
         return reader.getBitsPerPixel();
     }
 
@@ -148,7 +151,7 @@ public class bfwrapper implements Closeable {
      * getEffectiveSizeC() * getSizeZ() * getSizeT() == getImageCount()
      * regardless of the result of isRGB().
      */
-    int getEffectiveSizeC() {
+    public int getEffectiveSizeC() {
         return reader.getEffectiveSizeC();
     }
 
@@ -159,12 +162,12 @@ public class bfwrapper implements Closeable {
      * this value to be greater than 1 for non-interleaved data, such as an RGB
      * TIFF with Planar rather than Chunky configuration.
      */
-    int getRGBChannelCount() {
+    public int getRGBChannelCount() {
         return reader.getRGBChannelCount();
     }
 
     /** Gets whether the data is in little-endian format. */
-    boolean isLittleEndian() {
+    public boolean isLittleEndian() {
         return reader.isLittleEndian();
     }
 
@@ -183,15 +186,41 @@ public class bfwrapper implements Closeable {
      * the first dimension after X and Y (e.g., XYCTZ) and the
      * {@link #isInterleaved()} method will return true.
      */
-    String getDimensionOrder() {
+    public String getDimensionOrder() {
         return reader.getDimensionOrder();
     }
 
     /**
      * Gets whether the dimension order and sizes are known, or merely guesses.
      */
-    boolean isOrderCertain() {
+    public boolean isOrderCertain() {
         return reader.isOrderCertain();
+    }
+
+    /**
+     * Retrieves how many bytes per pixel the current plane or section has.
+     * 
+     * @param pixelType the pixel type as retrieved from
+     *                  {@link IFormatReader#getPixelType()}.
+     * @return the number of bytes per pixel.
+     * @see IFormatReader#getPixelType()
+     */
+    public int getBytesPerPixel() {
+        return FormatTools.getBytesPerPixel(reader.getPixelType());
+    }
+
+    /** Returns the size in bytes of a single plane. */
+    public int getPlaneSize() {
+        // r.getSizeX() * r.getSizeY() * r.getRGBChannelCount() *
+        // getBytesPerPixel(r.getPixelType())
+        return FormatTools.getPlaneSize(reader);
+    }
+
+    // javap.exe -s -public .\bioformats_package\ome\xml\meta\MetadataRetrieve.class
+    public String getChannelColor(int channel) {
+        var color = meta.getChannelColor(getSeries(), channel);
+        int[] rgba = { color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha() };
+        return Arrays.toString(rgba);
     }
 
     // https://github.com/ome/bioformats/blob/develop/components/formats-api/src/loci/formats/IFormatReader.java#L245
@@ -203,7 +232,7 @@ public class bfwrapper implements Closeable {
             return reader.openBytes(no);
         } catch (Exception e) {
             e.printStackTrace();
-            return new byte[0];
+            return null;
         }
     }
 
@@ -217,7 +246,7 @@ public class bfwrapper implements Closeable {
             return reader.openBytes(no, buf);
         } catch (Exception e) {
             e.printStackTrace();
-            return new byte[0];
+            return null;
         }
     }
 
@@ -230,7 +259,7 @@ public class bfwrapper implements Closeable {
             return reader.openBytes(no, x, y, w, h);
         } catch (Exception e) {
             e.printStackTrace();
-            return new byte[0];
+            return null;
         }
     }
 
@@ -251,27 +280,27 @@ public class bfwrapper implements Closeable {
             return reader.openBytes(no, buf, x, y, w, h);
         } catch (Exception e) {
             e.printStackTrace();
-            return new byte[0];
+            return null;
         }
     }
 
     /** Returns the optimal sub-image width for use with openBytes. */
-    int getOptimalTileWidth() {
+    public int getOptimalTileWidth() {
         return reader.getOptimalTileWidth();
     }
 
     /** Returns the optimal sub-image height for use with openBytes. */
-    int getOptimalTileHeight() {
+    public int getOptimalTileHeight() {
         return reader.getOptimalTileHeight();
     }
 
     /** Get the size of the X dimension for the thumbnail. */
-    int getThumbSizeX() {
+    public int getThumbSizeX() {
         return reader.getThumbSizeX();
     }
 
     /** Get the size of the Y dimension for the thumbnail. */
-    int getThumbSizeY() {
+    public int getThumbSizeY() {
         return reader.getThumbSizeY();
     }
 
@@ -284,7 +313,7 @@ public class bfwrapper implements Closeable {
             return reader.openThumbBytes(no);
         } catch (Exception e) {
             e.printStackTrace();
-            return new byte[0];
+            return null;
         }
     }
 }

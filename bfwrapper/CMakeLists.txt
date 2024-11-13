@@ -8,6 +8,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Java REQUIRED)
 find_package(JNI REQUIRED)
 
+find_package(OpenCV REQUIRED)
+
 include(UseJava)
 set(JAVA_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/java)
 file(MAKE_DIRECTORY ${JAVA_OUTPUT_DIR})
@@ -37,4 +39,5 @@ target_include_directories(showinfo
 )
 target_link_libraries(showinfo
     PRIVATE ${JNI_LIBRARIES}
+    PRIVATE ${OpenCV_LIBS}
 )
