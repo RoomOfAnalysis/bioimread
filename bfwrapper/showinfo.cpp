@@ -3,6 +3,7 @@
 #include <cassert>
 
 #include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
 
 #include "jvmwrapper.hpp"
 #include "stopwatch.hpp"
@@ -163,10 +164,20 @@ int main(int argc, char* argv[])
     jint sizeY = env->CallIntMethod(wrapper_instance, getSizeYMethod);
     std::cout << "getSizeY: " << sizeY << std::endl;
 
+    // getSizeZ()
+    jmethodID getSizeZMethod = env->GetMethodID(wrapper_cls, "getSizeZ", "()I");
+    jint sizeZ = env->CallIntMethod(wrapper_instance, getSizeZMethod);
+    std::cout << "getSizeZ: " << sizeZ << std::endl;
+
     // getEffectiveSizeC()
     jmethodID getEffectiveSizeCMethod = env->GetMethodID(wrapper_cls, "getEffectiveSizeC", "()I");
     jint sizeC = env->CallIntMethod(wrapper_instance, getEffectiveSizeCMethod);
     std::cout << "getEffectiveSizeC: " << sizeC << std::endl;
+
+    // getSizeT()
+    jmethodID getSizeTMethod = env->GetMethodID(wrapper_cls, "getSizeT", "()I");
+    jint sizeT = env->CallIntMethod(wrapper_instance, getSizeTMethod);
+    std::cout << "getSizeT: " << sizeT << std::endl;
 
     // getRGBChannelCount()
     jmethodID getRGBChannelCountMethod = env->GetMethodID(wrapper_cls, "getRGBChannelCount", "()I");
@@ -272,46 +283,44 @@ int main(int argc, char* argv[])
         {
             //TIME_BLOCK("openPlane");
             jmethodID openPlaneMethod = env->GetMethodID(wrapper_cls, "openPlane", "(I)[B");
-            jmethodID getZCTCoordsMethod = env->GetMethodID(wrapper_cls, "getZCTCoords", "(I)[I");
-            for (jint plane = 0; plane < planes; plane++)
-            {
-                jintArray ZCTCoords = (jintArray)env->CallObjectMethod(wrapper_instance, getZCTCoordsMethod, plane);
-                int z = 0, c = 0, t = 0;
-                if (ZCTCoords != nullptr)
+            jmethodID getPlaneIndexMethod = env->GetMethodID(wrapper_cls, "getPlaneIndex", "(III)I");
+            std::vector<cv::Mat> mats(sizeC);
+            cv::Mat img;
+            for (jint t = 0; t < sizeT; t++)
+                for (jint z = 0; z < sizeZ; z++)
                 {
-                    jsize len = env->GetArrayLength(ZCTCoords);
-                    assert(len == 3);
+                    for (jint c = 0; c < sizeC; c++)
+                    {
+                        jint plane = (jint)env->CallIntMethod(wrapper_instance, getPlaneIndexMethod, z, c, t);
+                        std::cout << "z: " << z << ", c: " << c << ", t: " << t << ", plane: " << plane << std::endl;
+                        jbyteArray byteArray =
+                            (jbyteArray)env->CallObjectMethod(wrapper_instance, openPlaneMethod, plane);
+                        if (byteArray != nullptr)
+                        {
+                            jsize len = env->GetArrayLength(byteArray);
+                            jbyte* body = env->GetByteArrayElements(byteArray, nullptr);
 
-                    jint* body = env->GetIntArrayElements(ZCTCoords, nullptr);
-                    z = body[0];
-                    c = body[1];
-                    t = body[2];
-                    env->ReleaseIntArrayElements(ZCTCoords, body, JNI_ABORT);
-                    std::cout << "z: " << z << ", c: " << c << ", t: " << t << std::endl;
-                }
+                            std::memcpy(bytes, body, sizeof(jbyte) * len);
 
-                jbyteArray byteArray = (jbyteArray)env->CallObjectMethod(wrapper_instance, openPlaneMethod, plane);
-                if (byteArray != nullptr)
-                {
-                    jsize len = env->GetArrayLength(byteArray);
-                    jbyte* body = env->GetByteArrayElements(byteArray, nullptr);
+                            total_bytes += sizeof(jbyte) * len;
 
-                    std::memcpy(bytes, body, sizeof(jbyte) * len);
+                            env->ReleaseByteArrayElements(byteArray, body, JNI_ABORT);
 
-                    total_bytes += sizeof(jbyte) * len;
-
-                    env->ReleaseByteArrayElements(byteArray, body, JNI_ABORT);
-
-                    auto img = cv::Mat(sizeY, sizeX, cv_type, bytes);
+                            mats[c] = cv::Mat(sizeY, sizeX, cv_type, bytes).clone();
+                        }
+                        else
+                        {
+                            std::cerr << "Error retrieving bytesdata at plane: " << plane << std::endl;
+                            break;
+                        }
+                    }
+                    cv::merge(mats, img);
+                    // lut seems not good
+                    // cv::cvtColor(img, img, cv::COLOR_RGBA2RGB);
+                    // cv::LUT(img, lut, img);
                     cv::imshow("plane", img);
                     if (cv::waitKey(0) == 'q') break;
                 }
-                else
-                {
-                    std::cerr << "Error retrieving bytesdata at plane: " << plane << std::endl;
-                    break;
-                }
-            }
         }
 
         delete[] bytes;
