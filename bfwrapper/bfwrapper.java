@@ -1,6 +1,5 @@
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.Arrays;
 import loci.common.DataTools;
 import loci.common.services.ServiceFactory;
 import loci.common.xml.XMLTools;
@@ -10,6 +9,9 @@ import loci.formats.meta.IMetadata;
 import loci.formats.meta.MetadataRetrieve;
 import loci.formats.services.OMEXMLService;
 import loci.formats.FormatException;
+import ome.units.UNITS;
+import ome.units.quantity.Length;
+import ome.units.quantity.Time;
 
 public class bfwrapper implements Closeable {
     private ImageReader reader;
@@ -126,6 +128,36 @@ public class bfwrapper implements Closeable {
         return reader.getSizeT();
     }
 
+    /**
+     * Gets the effective size of the C dimension, guaranteeing that
+     * getEffectiveSizeC() * getSizeZ() * getSizeT() == getImageCount()
+     * regardless of the result of isRGB().
+     */
+    public int getEffectiveSizeC() {
+        return reader.getEffectiveSizeC();
+    }
+
+    // https://github.com/ome/ome-model/blob/master/ome-xml/src/main/java/ome/units/UNITS.java
+    // mm
+    public double getPhysSizeX() {
+        return mm(meta.getPixelsPhysicalSizeX(0), 1.0);
+    }
+
+    // mm
+    public double getPhysSizeY() {
+        return mm(meta.getPixelsPhysicalSizeY(0), 1.0);
+    }
+
+    // mm
+    public double getPhysSizeZ() {
+        return mm(meta.getPixelsPhysicalSizeZ(0), 1.0);
+    }
+
+    // s
+    public double getPhysSizeT() {
+        return sec(meta.getPixelsTimeIncrement(0), 1.0);
+    }
+
     // https://github.com/ome/bioformats/blob/develop/components/formats-api/src/loci/formats/FormatTools.java#L99
     /**
      * Gets the pixel type.
@@ -144,15 +176,6 @@ public class bfwrapper implements Closeable {
      */
     public int getBitsPerPixel() {
         return reader.getBitsPerPixel();
-    }
-
-    /**
-     * Gets the effective size of the C dimension, guaranteeing that
-     * getEffectiveSizeC() * getSizeZ() * getSizeT() == getImageCount()
-     * regardless of the result of isRGB().
-     */
-    public int getEffectiveSizeC() {
-        return reader.getEffectiveSizeC();
     }
 
     /**
@@ -217,10 +240,9 @@ public class bfwrapper implements Closeable {
     }
 
     // javap.exe -s -public .\bioformats_package\ome\xml\meta\MetadataRetrieve.class
-    public String getChannelColor(int channel) {
+    public int[] getChannelColor(int channel) {
         var color = meta.getChannelColor(getSeries(), channel);
-        int[] rgba = { color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha() };
-        return Arrays.toString(rgba);
+        return new int[] { color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha() };
     }
 
     // https://github.com/ome/bioformats/blob/develop/components/formats-api/src/loci/formats/IFormatReader.java#L245
@@ -315,5 +337,92 @@ public class bfwrapper implements Closeable {
             e.printStackTrace();
             return null;
         }
+    }
+
+    // ensure bytes in little endian
+    // https://github.com/scifio/scifio-itk-bridge/blob/master/src/main/java/io/scif/itk/SCIFIOITKBridge.java#L402
+    public byte[] openPlane(int no) {
+        final int bpp = FormatTools.getBytesPerPixel(reader.getPixelType());
+        return getBytes(DataTools.makeDataArray(openBytes(no), bpp, FormatTools
+                .isFloatingPoint(reader.getPixelType()),
+                reader
+                        .isLittleEndian()));
+    }
+
+    /**
+     * Gets the rasterized index corresponding
+     * to the given Z, C and T coordinates (real sizes).
+     */
+    public int getPlaneIndex(int z, int c, int t) {
+        return reader.getIndex(z, c, t);
+    }
+
+    /**
+     * Gets the Z, C and T coordinates (real sizes) corresponding to the
+     * given rasterized index value.
+     */
+    public int[] getZCTCoords(int index) {
+        return reader.getZCTCoords(index);
+    }
+
+    /**
+     * Gets the 8-bit color lookup table associated with
+     * the most recently opened image.
+     * If no image planes have been opened, or if {@link #isIndexed()} returns
+     * false, then this may return null. Also, if {@link #getPixelType()} returns
+     * anything other than {@link FormatTools#INT8} or {@link FormatTools#UINT8},
+     * this method will return null.
+     */
+    public byte[][] get8BitLookupTable() {
+        try {
+            return reader.get8BitLookupTable();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
+     * Gets the 16-bit color lookup table associated with
+     * the most recently opened image.
+     * If no image planes have been opened, or if {@link #isIndexed()} returns
+     * false, then this may return null. Also, if {@link #getPixelType()} returns
+     * anything other than {@link FormatTools#INT16} or {@link
+     * FormatTools#UINT16}, this method will return null.
+     */
+    public short[][] get16BitLookupTable() {
+        try {
+            return reader.get16BitLookupTable();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private byte[] getBytes(final Object data) {
+        if (data instanceof byte[]) {
+            return (byte[]) data;
+        } else if (data instanceof short[]) {
+            return DataTools.shortsToBytes((short[]) data, true);
+        } else if (data instanceof int[]) {
+            return DataTools.intsToBytes((int[]) data, true);
+        } else if (data instanceof long[]) {
+            return DataTools.longsToBytes((long[]) data, true);
+        } else if (data instanceof double[]) {
+            return DataTools.doublesToBytes((double[]) data, true);
+        } else if (data instanceof float[]) {
+            return DataTools.floatsToBytes((float[]) data, true);
+        }
+        return null;
+    }
+
+    private double mm(final Length l, final double defaultValue) {
+        return l != null && l.unit().isConvertible(UNITS.MILLIMETER) ? //
+                l.value(UNITS.MILLIMETER).doubleValue() : defaultValue;
+    }
+
+    private double sec(final Time t, final double defaultValue) {
+        return t != null && t.unit().isConvertible(UNITS.SECOND) ? //
+                t.value(UNITS.SECOND).doubleValue() : defaultValue;
     }
 }
