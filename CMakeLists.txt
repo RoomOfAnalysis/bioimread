@@ -66,6 +66,7 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE Qt6::Widgets
     PRIVATE Qt6::Xml
     #PRIVATE ${JNI_LIBRARIES} # no need to link, jvm.dll should be in ENV path
+    reader
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

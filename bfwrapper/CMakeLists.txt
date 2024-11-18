@@ -41,3 +41,16 @@ target_link_libraries(showinfo
     PRIVATE ${JNI_LIBRARIES}
     PRIVATE ${OpenCV_LIBS}
 )
+
+add_library(reader
+    STATIC
+    jvmwrapper.cpp jvmwrapper.hpp
+    reader.cpp reader.hpp
+)
+target_include_directories(reader
+    PRIVATE ${JNI_INCLUDE_DIRS}
+)
+target_link_libraries(reader
+    PUBLIC ${JNI_LIBRARIES}
+    PUBLIC ${OpenCV_LIBS}
+)

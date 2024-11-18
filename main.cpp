@@ -1,12 +1,13 @@
 #include <QApplication>
 #include <QFileInfo>
 #include <QDebug>
+#include <QMainWindow>
+#include <QWidget>
+#include <QLayout>
+#include <QLabel>
+#include <QPushButton>
 
-#include <jni.h>
-
-#include <Windows.h>
-
-typedef int(__stdcall* JNI_CreateJavaVMFunc)(JavaVM** pvm, JNIEnv** penv, void* args);
+#include "bfwrapper/reader.hpp"
 
 int main(int argc, char* argv[])
 {
@@ -16,89 +17,61 @@ int main(int argc, char* argv[])
     if (!info.exists()) qDebug() << "image file not exist at:" << info.absoluteFilePath();
     auto img_file_path = info.absoluteFilePath().toStdString();
 
-    auto java_home = qgetenv("JAVA_HOME");
-    auto jvm_dll_path = (java_home + "/bin/server/jvm.dll").toStdString();
-
-    // https://github.com/mitchdowd/jnipp/blob/master/jnipp.cpp#L1489
-    HMODULE jvmDLL = LoadLibraryA(jvm_dll_path.c_str());
-    if (jvmDLL == 0)
+    Reader reader;
+    if (!reader.open(img_file_path.c_str()))
     {
-        qCritical() << "failed to load jvm.dll at:" << jvm_dll_path;
-        exit(EXIT_FAILURE);
+        qCritical() << "can not read file:" << img_file_path;
+        return 0;
     }
-
-    JNI_CreateJavaVMFunc Dll_JNI_CreateJavaVM = (JNI_CreateJavaVMFunc)GetProcAddress(jvmDLL, "JNI_CreateJavaVM");
-    if (Dll_JNI_CreateJavaVM == 0)
-    {
-        qCritical() << "failed to get jni create jvm func";
-        exit(EXIT_FAILURE);
-    }
-
-    JavaVM* jvm = nullptr;
-    JNIEnv* env = nullptr;
-
-    JavaVMInitArgs vm_args{};
-    JavaVMOption* options = new JavaVMOption[1];
-    auto jar_path =
-        ("-Djava.class.path=" + QApplication::applicationDirPath() + "/bioformats_package.jar").toStdString();
-    options[0].optionString = const_cast<char*>(jar_path.c_str()); // "-verbose:jni"
-
-    vm_args.version = JNI_VERSION_1_8;
-    vm_args.nOptions = 1;
-    vm_args.options = options;
-    vm_args.ignoreUnrecognized = false;
-
-    // Is your debugger catching an error here?  This is normal.  Just continue. The JVM
-    // intentionally does this to test how the OS handles memory - reference exceptions.
-    // https://stackoverflow.com/questions/36250235/exception-0xc0000005-from-jni-createjavavm-jvm-dll/53654317#53654317
-    jint rc = Dll_JNI_CreateJavaVM(&jvm, &env, &vm_args);
-    delete[] options;
-    if (rc != JNI_OK)
-    {
-        qCritical() << "jni failed to create jvm";
-        exit(EXIT_FAILURE);
-    }
-    jint ver = env->GetVersion();
-    qDebug() << "JVM load succeeded: Version" << ((ver >> 16) & 0x0f) << "." << (ver & 0x0f);
-
-    if (jclass cls = env->FindClass("loci/formats/ImageReader"); cls == nullptr)
-        qCritical() << "can NOT find bioformats class";
     else
     {
-        // https://docs.oracle.com/en/java/javase/23/docs/specs/jni/types.html
-        // unzip the `bfwrapper.jar` and use `javap -s -public .\bfwrapper\bfwrapper.class` to obtain the api description
-        if (jmethodID constructor = env->GetMethodID(cls, "<init>", "()V"); constructor == nullptr)
-            qCritical() << "can NOT get constructor";
-        else
-        {
-            jobject instance = env->NewObject(cls, constructor);
+        reader.setSeries(0);
+        auto cur = reader.getImageCount() / 2;
+        auto img = reader.getPlane(cur);
+        QImage qimg = QImage((uchar*)img.data, img.cols, img.rows, img.step, QImage::Format_Grayscale8);
 
-            if (jmethodID method_handle = env->GetMethodID(cls, "getFormat", "(Ljava/lang/String;)Ljava/lang/String;");
-                method_handle == nullptr)
-                qCritical() << "can NOT get method";
-            else
+        QLabel label;
+        label.setPixmap(QPixmap::fromImage(qimg));
+
+        QLabel txt(QString::number(cur), &label);
+        txt.setStyleSheet("color:yellow;font-size:18pt");
+
+        QPushButton prev("prev"), next("next");
+        QObject::connect(&prev, &QPushButton::pressed, [&reader, &txt, &label]() {
+            if (auto cur = txt.text().toInt(); cur > 0)
             {
-                if (jstring filename = env->NewStringUTF(img_file_path.c_str()); filename == nullptr)
-                    qCritical() << "jni bad allc";
-                else
-                {
-                    jstring jstr = static_cast<jstring>(env->CallObjectMethod(instance, method_handle, filename));
-                    if (jstr == nullptr) qCritical() << "jstr null";
-                    if (env->ExceptionCheck()) env->ExceptionDescribe();
-                    char const* str = env->GetStringUTFChars(jstr, nullptr);
-                    qDebug() << str;
-                    env->ReleaseStringUTFChars(jstr, str);
-                    env->DeleteLocalRef(jstr);
-                    env->DeleteLocalRef(filename);
-                }
+                cur--;
+                auto img = reader.getPlane(cur);
+                QImage qimg = QImage((uchar*)img.data, img.cols, img.rows, img.step, QImage::Format_Grayscale8);
+                label.setPixmap(QPixmap::fromImage(qimg));
+                txt.setText(QString::number(cur));
             }
+        });
+        QObject::connect(&next, &QPushButton::pressed, [&reader, &txt, &label]() {
+            if (auto cur = txt.text().toInt(); cur < reader.getImageCount() - 1)
+            {
+                cur++;
+                auto img = reader.getPlane(cur);
+                QImage qimg = QImage((uchar*)img.data, img.cols, img.rows, img.step, QImage::Format_Grayscale8);
+                label.setPixmap(QPixmap::fromImage(qimg));
+                txt.setText(QString::number(cur));
+            }
+        });
 
-            env->DeleteLocalRef(instance);
-        }
+        QWidget w;
+        QVBoxLayout vl;
+        vl.addWidget(&label);
+        QHBoxLayout hl;
+        hl.addWidget(&prev);
+        hl.addWidget(&next);
+        vl.addLayout(&hl);
+        w.setLayout(&vl);
+
+        QMainWindow m;
+        m.setWindowTitle("bioimread");
+        m.setCentralWidget(&w);
+        m.showMaximized();
+
+        return app.exec();
     }
-
-    jvm->DestroyJavaVM();
-    FreeLibrary(jvmDLL);
-
-    return 0; // app.exec();
 }

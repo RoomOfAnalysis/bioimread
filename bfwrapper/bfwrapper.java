@@ -1,6 +1,7 @@
 import java.io.Closeable;
 import java.io.IOException;
 import loci.common.DataTools;
+import loci.common.DebugTools;
 import loci.common.services.ServiceFactory;
 import loci.common.xml.XMLTools;
 import loci.formats.FormatTools;
@@ -20,6 +21,7 @@ public class bfwrapper implements Closeable {
 
     public bfwrapper() {
         try {
+            DebugTools.setRootLevel("ERROR");
             reader = new ImageReader();
             ServiceFactory factory = new ServiceFactory();
             service = factory.getInstance(OMEXMLService.class);
@@ -35,7 +37,13 @@ public class bfwrapper implements Closeable {
         reader.close();
     }
 
+    public void setDebugLogLevel(String level) {
+        DebugTools.setRootLevel(level);
+    }
+
     public boolean setId(String filePath) {
+        if (!reader.isThisType(filePath))
+            return false;
         try {
             reader.setId(filePath);
             return true;
@@ -417,12 +425,11 @@ public class bfwrapper implements Closeable {
     }
 
     private double mm(final Length l, final double defaultValue) {
-        return l != null && l.unit().isConvertible(UNITS.MILLIMETER) ? //
-                l.value(UNITS.MILLIMETER).doubleValue() : defaultValue;
+        return l != null && l.unit().isConvertible(UNITS.MILLIMETER) ? l.value(UNITS.MILLIMETER).doubleValue()
+                : defaultValue;
     }
 
     private double sec(final Time t, final double defaultValue) {
-        return t != null && t.unit().isConvertible(UNITS.SECOND) ? //
-                t.value(UNITS.SECOND).doubleValue() : defaultValue;
+        return t != null && t.unit().isConvertible(UNITS.SECOND) ? t.value(UNITS.SECOND).doubleValue() : defaultValue;
     }
 }
