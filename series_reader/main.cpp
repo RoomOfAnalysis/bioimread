@@ -28,7 +28,10 @@ int main(int argc, char* argv[])
         reader.setSeries(0);
         auto cur = reader.getImageCount() / 2;
         auto img = reader.getPlane(cur);
-        QImage qimg = QImage((uchar*)img.data, img.cols, img.rows, img.step, QImage::Format_Grayscale8);
+        auto qformat = img.channels() == 1 ?
+                           (img.type() == CV_16U ? QImage::Format_Grayscale16 : QImage::Format_Grayscale8) :
+                           QImage::Format_BGR888;
+        QImage qimg = QImage((uchar*)img.data, img.cols, img.rows, img.step, qformat);
 
         QLabel label;
         label.setPixmap(QPixmap::fromImage(qimg));
@@ -37,22 +40,22 @@ int main(int argc, char* argv[])
         txt.setStyleSheet("color:yellow;font-size:18pt");
 
         QPushButton prev("prev"), next("next");
-        QObject::connect(&prev, &QPushButton::pressed, [&reader, &txt, &label]() {
+        QObject::connect(&prev, &QPushButton::pressed, [&reader, &txt, &label, qformat]() {
             if (auto cur = txt.text().toInt(); cur > 0)
             {
                 cur--;
                 auto img = reader.getPlane(cur);
-                QImage qimg = QImage((uchar*)img.data, img.cols, img.rows, img.step, QImage::Format_Grayscale8);
+                QImage qimg = QImage((uchar*)img.data, img.cols, img.rows, img.step, qformat);
                 label.setPixmap(QPixmap::fromImage(qimg));
                 txt.setText(QString::number(cur));
             }
         });
-        QObject::connect(&next, &QPushButton::pressed, [&reader, &txt, &label]() {
+        QObject::connect(&next, &QPushButton::pressed, [&reader, &txt, &label, qformat]() {
             if (auto cur = txt.text().toInt(); cur < reader.getImageCount() - 1)
             {
                 cur++;
                 auto img = reader.getPlane(cur);
-                QImage qimg = QImage((uchar*)img.data, img.cols, img.rows, img.step, QImage::Format_Grayscale8);
+                QImage qimg = QImage((uchar*)img.data, img.cols, img.rows, img.step, qformat);
                 label.setPixmap(QPixmap::fromImage(qimg));
                 txt.setText(QString::number(cur));
             }

@@ -9,6 +9,7 @@
 #include <QDebug>
 
 #include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
 
 static double lengthUnitTransfer(QString const& unit)
 {
@@ -269,8 +270,9 @@ cv::Mat SeriesReader::getPlane(int no)
             int zz = match.captured(2).toInt();
             int cc = match.captured(3).toInt();
             int tt = match.captured(4).toInt();
-            // FIXME: cv::imread image seems darker than bf
-            if (zz == z && cc == c && tt == t) return cv::imread(fn.toStdString(), cv::IMREAD_GRAYSCALE);
+            // open .tiff in fiji and found it's C_8UC3 BGR 3 channels image...
+            // which means `bfconvert` changes the image format even though `getRGBChannelCount() == 1`...
+            if (zz == z && cc == c && tt == t) return cv::imread(fn.toStdString(), cv::IMREAD_ANYCOLOR);
         }
     }
     return {};
