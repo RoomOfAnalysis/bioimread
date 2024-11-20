@@ -56,6 +56,7 @@ file(GLOB PROJECT_SOURCES LIST_DIRECTORIES false CONFIGURE_DEPENDS
 
 add_executable(${PROJECT_NAME}
     ${PROJECT_SOURCES}
+    ${SRC_DIR}/utils/gray16.cpp ${SRC_DIR}/utils/gray16.hpp
 )
 
 target_include_directories(${PROJECT_NAME}

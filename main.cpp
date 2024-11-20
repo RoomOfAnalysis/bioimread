@@ -8,6 +8,9 @@
 #include <QPushButton>
 
 #include "bfwrapper/reader.hpp"
+#include "utils/gray16.hpp"
+
+#define USE_FALSE_COLOR
 
 int main(int argc, char* argv[])
 {
@@ -32,6 +35,12 @@ int main(int argc, char* argv[])
                            (img.type() == CV_16U ? QImage::Format_Grayscale16 : QImage::Format_Grayscale8) :
                            QImage::Format_BGR888;
         QImage qimg = QImage((uchar*)img.data, img.cols, img.rows, img.step, qformat);
+        if (qformat == QImage::Format_Grayscale16)
+#ifdef USE_FALSE_COLOR
+            qimg = falseColor(qimg);
+#else
+            qimg = gray16ToGray8(qimg);
+#endif
 
         QLabel label;
         label.setPixmap(QPixmap::fromImage(qimg));
@@ -46,6 +55,12 @@ int main(int argc, char* argv[])
                 cur--;
                 auto img = reader.getPlane(cur);
                 QImage qimg = QImage((uchar*)img.data, img.cols, img.rows, img.step, qformat);
+                if (qformat == QImage::Format_Grayscale16)
+#ifdef USE_FALSE_COLOR
+                    qimg = falseColor(qimg);
+#else
+                    qimg = gray16ToGray8(qimg);
+#endif
                 label.setPixmap(QPixmap::fromImage(qimg));
                 txt.setText(QString::number(cur));
             }
@@ -56,6 +71,12 @@ int main(int argc, char* argv[])
                 cur++;
                 auto img = reader.getPlane(cur);
                 QImage qimg = QImage((uchar*)img.data, img.cols, img.rows, img.step, qformat);
+                if (qformat == QImage::Format_Grayscale16)
+#ifdef USE_FALSE_COLOR
+                    qimg = falseColor(qimg);
+#else
+                    qimg = gray16ToGray8(qimg);
+#endif
                 label.setPixmap(QPixmap::fromImage(qimg));
                 txt.setText(QString::number(cur));
             }
