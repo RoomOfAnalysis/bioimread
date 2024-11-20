@@ -2,6 +2,7 @@
 
 #include "jvmwrapper.hpp"
 
+#include <cassert>
 #include <iostream>
 
 struct Reader::impl
@@ -146,10 +147,15 @@ double Reader::getPhysSizeT()
                                          pimpl->jvm_wrapper->getMethodID(pimpl->wrapper_cls, "getPhysSizeT", "()D"));
 }
 
-int Reader::getPixelType()
+Reader::PixelType Reader::getPixelType()
 {
-    return pimpl->jvm_env->CallIntMethod(pimpl->wrapper_instance,
-                                         pimpl->jvm_wrapper->getMethodID(pimpl->wrapper_cls, "getPixelType", "()I"));
+    return static_cast<Reader::PixelType>(pimpl->jvm_env->CallIntMethod(
+        pimpl->wrapper_instance, pimpl->jvm_wrapper->getMethodID(pimpl->wrapper_cls, "getPixelType", "()I")));
+}
+
+int Reader::getBytesPerPixel()
+{
+    return getBytesPerPixel(getPixelType());
 }
 
 int Reader::getRGBChannelCount()
@@ -214,7 +220,7 @@ std::array<int, 3> Reader::getZCTCoords(int index)
     return coord;
 }
 
-cv::Mat Reader::getPlane(int no)
+std::unique_ptr<char[]> Reader::getPlane(int no)
 {
     jbyteArray byteArray = (jbyteArray)pimpl->jvm_env->CallObjectMethod(
         pimpl->wrapper_instance, pimpl->jvm_wrapper->getMethodID(pimpl->wrapper_cls, "openPlane", "(I)[B"), no);
@@ -225,31 +231,47 @@ cv::Mat Reader::getPlane(int no)
     jbyte* body = pimpl->jvm_env->GetByteArrayElements(byteArray, nullptr);
 
     // TODO: pre-allocate buffer and cache sizeX...
-    auto* bytes = new char[sizeof(jbyte) * len];
+    auto bytes = std::make_unique<char[]>(sizeof(jbyte) * len);
 
-    std::memcpy(bytes, body, sizeof(jbyte) * len);
+    std::memcpy(bytes.get(), body, sizeof(jbyte) * len);
 
     pimpl->jvm_env->ReleaseByteArrayElements(byteArray, body, JNI_ABORT);
 
-    auto res = cv::Mat(getSizeX(), getSizeY(), pixelType2CVType(getPixelType()), bytes).clone();
-    delete[] bytes;
-    return res;
+    return bytes;
 }
 
-std::string Reader::pixelTypeStr(int pixelType)
+std::string Reader::pixelTypeStr(PixelType pt)
 {
     static std::string typeStr[9]{"int8", "uint8", "int16", "uint16", "int32", "uint32", "float", "double", "bit"};
 
+    int pixelType = static_cast<int>(pt);
     assert(0 <= pixelType && pixelType <= 8);
 
     return typeStr[pixelType];
 }
 
-int Reader::pixelType2CVType(int pixelType)
+int Reader::getBytesPerPixel(PixelType pixelType)
 {
-    static int type[9]{CV_8S, CV_8U, CV_16S, CV_16U, CV_32S, CV_32S, CV_32F, CV_64F, CV_8S};
-
-    assert(0 <= pixelType && pixelType <= 8);
-
-    return type[pixelType];
+    switch (pixelType)
+    {
+    case PixelType::INT8:
+        [[fallthrough]];
+    case PixelType::UINT8:
+        [[fallthrough]];
+    case PixelType::BIT:
+        return 1;
+    case PixelType::INT16:
+        [[fallthrough]];
+    case PixelType::UINT16:
+        return 2;
+    case PixelType::INT32:
+        [[fallthrough]];
+    case PixelType::UINT32:
+        [[fallthrough]];
+    case PixelType::FLOAT:
+        return 4;
+    case PixelType::DOUBLE:
+        return 8;
+    }
+    return 1;
 }

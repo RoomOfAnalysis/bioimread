@@ -52,5 +52,4 @@ target_include_directories(reader
 )
 target_link_libraries(reader
     PUBLIC ${JNI_LIBRARIES}
-    PUBLIC ${OpenCV_LIBS}
 )

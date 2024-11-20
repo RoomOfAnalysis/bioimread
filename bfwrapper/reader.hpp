@@ -1,11 +1,28 @@
 #pragma once
 
 #include <string>
+#include <array>
 #include <memory>
-#include <opencv2/core.hpp>
 
 class Reader
 {
+public:
+    enum class PixelType : int
+    {
+        INT8 = 0,
+        UINT8,
+        INT16,
+        UINT16,
+        INT32,
+        UINT32,
+        FLOAT,
+        DOUBLE,
+        BIT
+    };
+
+    static std::string pixelTypeStr(PixelType pixelType);
+    static int getBytesPerPixel(PixelType pixelType);
+
 public:
     Reader();
     ~Reader();
@@ -32,16 +49,14 @@ public:
     double getPhysSizeZ();
     // s
     double getPhysSizeT();
-    int getPixelType();
+    PixelType getPixelType();
+    int getBytesPerPixel();
     int getRGBChannelCount();
     std::array<int, 4> getChannelColor(int channel);
     int getPlaneSize();
     int getPlaneIndex(int z, int c, int t);
     std::array<int, 3> getZCTCoords(int index);
-    cv::Mat getPlane(int no);
-
-    std::string pixelTypeStr(int pixelType);
-    int pixelType2CVType(int pixelType);
+    std::unique_ptr<char[]> getPlane(int no);
 
 private:
     struct impl;

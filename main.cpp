@@ -30,11 +30,11 @@ int main(int argc, char* argv[])
     {
         reader.setSeries(0);
         auto cur = reader.getImageCount() / 2;
-        auto img = reader.getPlane(cur);
-        auto qformat = img.channels() == 1 ?
-                           (img.type() == CV_16U ? QImage::Format_Grayscale16 : QImage::Format_Grayscale8) :
-                           QImage::Format_BGR888;
-        QImage qimg = QImage((uchar*)img.data, img.cols, img.rows, img.step, qformat);
+        auto bytes = reader.getPlane(cur);
+        auto qformat =
+            reader.getPixelType() == Reader::PixelType::UINT16 ? QImage::Format_Grayscale16 : QImage::Format_Grayscale8;
+        QImage qimg = QImage((uchar*)bytes.get(), reader.getSizeX(), reader.getSizeY(),
+                             reader.getSizeX() * reader.getBytesPerPixel(), qformat);
         if (qformat == QImage::Format_Grayscale16)
 #ifdef USE_FALSE_COLOR
             qimg = falseColor(qimg);
@@ -53,8 +53,9 @@ int main(int argc, char* argv[])
             if (auto cur = txt.text().toInt(); cur > 0)
             {
                 cur--;
-                auto img = reader.getPlane(cur);
-                QImage qimg = QImage((uchar*)img.data, img.cols, img.rows, img.step, qformat);
+                auto bytes = reader.getPlane(cur);
+                QImage qimg = QImage((uchar*)bytes.get(), reader.getSizeX(), reader.getSizeY(),
+                                     reader.getSizeX() * reader.getBytesPerPixel(), qformat);
                 if (qformat == QImage::Format_Grayscale16)
 #ifdef USE_FALSE_COLOR
                     qimg = falseColor(qimg);
@@ -69,8 +70,9 @@ int main(int argc, char* argv[])
             if (auto cur = txt.text().toInt(); cur < reader.getImageCount() - 1)
             {
                 cur++;
-                auto img = reader.getPlane(cur);
-                QImage qimg = QImage((uchar*)img.data, img.cols, img.rows, img.step, qformat);
+                auto bytes = reader.getPlane(cur);
+                QImage qimg = QImage((uchar*)bytes.get(), reader.getSizeX(), reader.getSizeY(),
+                                     reader.getSizeX() * reader.getBytesPerPixel(), qformat);
                 if (qformat == QImage::Format_Grayscale16)
 #ifdef USE_FALSE_COLOR
                     qimg = falseColor(qimg);
