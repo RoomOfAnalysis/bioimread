@@ -20,21 +20,21 @@ int main(int argc, char* argv[])
     if (!info.exists()) qDebug() << "image file not exist at:" << info.absoluteFilePath();
     auto img_file_path = info.absoluteFilePath().toStdString();
 
-    Reader reader;
-    if (!reader.open(img_file_path.c_str()))
+    auto reader = new Reader;
+    if (!reader->open(img_file_path.c_str()))
     {
         qCritical() << "can not read file:" << img_file_path;
         return 0;
     }
     else
     {
-        reader.setSeries(0);
-        auto cur = reader.getImageCount() / 2;
-        auto bytes = reader.getPlane(cur);
-        auto qformat =
-            reader.getPixelType() == Reader::PixelType::UINT16 ? QImage::Format_Grayscale16 : QImage::Format_Grayscale8;
-        QImage qimg = QImage((uchar*)bytes.get(), reader.getSizeX(), reader.getSizeY(),
-                             reader.getSizeX() * reader.getBytesPerPixel(), qformat);
+        reader->setSeries(0);
+        auto cur = reader->getImageCount() / 2;
+        auto qformat = reader->getPixelType() == Reader::PixelType::UINT16 ? QImage::Format_Grayscale16 :
+                                                                             QImage::Format_Grayscale8;
+        QImage qimg = QImage((uchar*)reader->getPlane(cur).get(), reader->getSizeX(), reader->getSizeY(),
+                             reader->getSizeX() * reader->getBytesPerPixel(), qformat)
+                          .copy();
         if (qformat == QImage::Format_Grayscale16)
 #ifdef USE_FALSE_COLOR
             qimg = falseColor(qimg);
@@ -42,60 +42,61 @@ int main(int argc, char* argv[])
             qimg = gray16ToGray8(qimg);
 #endif
 
-        QLabel label;
-        label.setPixmap(QPixmap::fromImage(qimg));
+        auto label = new QLabel;
+        label->setPixmap(QPixmap::fromImage(qimg));
 
-        QLabel txt(QString::number(cur), &label);
-        txt.setStyleSheet("color:yellow;font-size:18pt");
+        auto txt = new QLabel(QString::number(cur), label);
+        txt->setStyleSheet("color:yellow;font-size:18pt");
 
-        QPushButton prev("prev"), next("next");
-        QObject::connect(&prev, &QPushButton::pressed, [&reader, &txt, &label, qformat]() {
-            if (auto cur = txt.text().toInt(); cur > 0)
+        auto prev = new QPushButton("prev");
+        auto next = new QPushButton("next");
+        QObject::connect(prev, &QPushButton::pressed, [&reader, &txt, &label, qformat]() {
+            if (auto cur = txt->text().toInt(); cur > 0)
             {
                 cur--;
-                auto bytes = reader.getPlane(cur);
-                QImage qimg = QImage((uchar*)bytes.get(), reader.getSizeX(), reader.getSizeY(),
-                                     reader.getSizeX() * reader.getBytesPerPixel(), qformat);
+                QImage qimg = QImage((uchar*)reader->getPlane(cur).get(), reader->getSizeX(), reader->getSizeY(),
+                                     reader->getSizeX() * reader->getBytesPerPixel(), qformat)
+                                  .copy();
                 if (qformat == QImage::Format_Grayscale16)
 #ifdef USE_FALSE_COLOR
                     qimg = falseColor(qimg);
 #else
                     qimg = gray16ToGray8(qimg);
 #endif
-                label.setPixmap(QPixmap::fromImage(qimg));
-                txt.setText(QString::number(cur));
+                label->setPixmap(QPixmap::fromImage(qimg));
+                txt->setText(QString::number(cur));
             }
         });
-        QObject::connect(&next, &QPushButton::pressed, [&reader, &txt, &label, qformat]() {
-            if (auto cur = txt.text().toInt(); cur < reader.getImageCount() - 1)
+        QObject::connect(next, &QPushButton::pressed, [&reader, &txt, &label, qformat]() {
+            if (auto cur = txt->text().toInt(); cur < reader->getImageCount() - 1)
             {
                 cur++;
-                auto bytes = reader.getPlane(cur);
-                QImage qimg = QImage((uchar*)bytes.get(), reader.getSizeX(), reader.getSizeY(),
-                                     reader.getSizeX() * reader.getBytesPerPixel(), qformat);
+                QImage qimg = QImage((uchar*)reader->getPlane(cur).get(), reader->getSizeX(), reader->getSizeY(),
+                                     reader->getSizeX() * reader->getBytesPerPixel(), qformat)
+                                  .copy();
                 if (qformat == QImage::Format_Grayscale16)
 #ifdef USE_FALSE_COLOR
                     qimg = falseColor(qimg);
 #else
                     qimg = gray16ToGray8(qimg);
 #endif
-                label.setPixmap(QPixmap::fromImage(qimg));
-                txt.setText(QString::number(cur));
+                label->setPixmap(QPixmap::fromImage(qimg));
+                txt->setText(QString::number(cur));
             }
         });
 
-        QWidget w;
-        QVBoxLayout vl;
-        vl.addWidget(&label);
-        QHBoxLayout hl;
-        hl.addWidget(&prev);
-        hl.addWidget(&next);
-        vl.addLayout(&hl);
-        w.setLayout(&vl);
+        auto w = new QWidget;
+        auto vl = new QVBoxLayout;
+        vl->addWidget(label);
+        auto hl = new QHBoxLayout;
+        hl->addWidget(prev);
+        hl->addWidget(next);
+        vl->addLayout(hl);
+        w->setLayout(vl);
 
         QMainWindow m;
         m.setWindowTitle("bioimread");
-        m.setCentralWidget(&w);
+        m.setCentralWidget(w);
         m.showMaximized();
 
         return app.exec();
