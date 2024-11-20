@@ -32,28 +32,29 @@ public:
 
     void setSeries(int no);
 
-    int getImageCount();
-    int getSeriesCount();
-    int getSeries();
-    int getSizeX();
-    int getSizeY();
-    int getSizeZ();
+    int getImageCount() const;
+    int getSeriesCount() const;
+    int getSeries() const;
+    int getSizeX() const;
+    int getSizeY() const;
+    int getSizeZ() const;
     // effective
-    int getSizeC();
-    int getSizeT();
+    int getSizeC() const;
+    int getSizeT() const;
     // mm
-    double getPhysSizeX();
+    double getPhysSizeX() const;
     // mm
-    double getPhysSizeY();
+    double getPhysSizeY() const;
     // mm
-    double getPhysSizeZ();
+    double getPhysSizeZ() const;
     // s
-    double getPhysSizeT();
-    PixelType getPixelType();
-    int getBytesPerPixel();
-    int getRGBChannelCount();
-    std::array<int, 4> getChannelColor(int channel);
-    int getPlaneSize();
+    double getPhysSizeT() const;
+    PixelType getPixelType() const;
+    int getBytesPerPixel() const;
+    int getRGBChannelCount() const;
+    std::array<int, 4> getChannelColor(int channel) const;
+    int getPlaneSize() const;
+
     int getPlaneIndex(int z, int c, int t);
     std::array<int, 3> getZCTCoords(int index);
     std::unique_ptr<char[]> getPlane(int no);
