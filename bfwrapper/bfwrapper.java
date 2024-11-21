@@ -37,6 +37,24 @@ public class bfwrapper implements Closeable {
         reader.close();
     }
 
+    public void close(boolean fileOnly) {
+        try {
+            reader.close(fileOnly);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public boolean reopenFile() {
+        try {
+            reader.reopenFile();
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
     public void setDebugLogLevel(String level) {
         DebugTools.setRootLevel(level);
     }

@@ -29,6 +29,7 @@ public:
 
     bool open(std::string filePath);
     void close();
+    bool reopen();
 
     void setSeries(int no);
 

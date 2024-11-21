@@ -11,6 +11,7 @@ struct Reader::impl
     JNIEnv* jvm_env = nullptr;
     jclass wrapper_cls = nullptr;       // global reference
     jobject wrapper_instance = nullptr; // global reference
+    jclass system_cls = nullptr;        // global reference
 
     struct meta
     {
@@ -37,6 +38,7 @@ struct Reader::impl
 
     bool open(std::string filePath);
     void close();
+    bool reopen();
     void setSeries(int no);
     int getImageCount();
     int getSeriesCount();
@@ -62,6 +64,8 @@ struct Reader::impl
     int getPlaneIndex(int z, int c, int t);
     std::array<int, 3> getZCTCoords(int index);
     std::unique_ptr<char[]> getPlane(int no);
+
+    void force_gc();
 };
 
 Reader::Reader()
@@ -77,6 +81,7 @@ Reader::Reader()
         pimpl = nullptr;
         return;
     }
+    pimpl->system_cls = pimpl->jvm_wrapper->findClass("java/lang/System");
     if (auto local_ref = pimpl->jvm_env->NewObject(
             pimpl->wrapper_cls, pimpl->jvm_wrapper->getMethodID(pimpl->wrapper_cls, "<init>", "()V"));
         local_ref)
@@ -100,8 +105,10 @@ Reader::~Reader()
         close();
         pimpl->jvm_env->DeleteGlobalRef(pimpl->wrapper_cls);
         pimpl->jvm_env->DeleteGlobalRef(pimpl->wrapper_instance);
+        pimpl->jvm_env->DeleteGlobalRef(pimpl->system_cls);
         pimpl->wrapper_cls = nullptr;
         pimpl->wrapper_instance = nullptr;
+        pimpl->system_cls = nullptr;
     }
     pimpl = nullptr;
 }
@@ -115,6 +122,12 @@ bool Reader::open(std::string filePath)
 void Reader::close()
 {
     if (pimpl) pimpl->close();
+}
+
+bool Reader::reopen()
+{
+    if (!pimpl) return false;
+    return pimpl->reopen();
 }
 
 void Reader::setSeries(int no)
@@ -288,6 +301,19 @@ void Reader::impl::close()
     jvm_env->CallVoidMethod(wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "close", "()V"));
 }
 
+bool Reader::impl::reopen()
+{
+    if (auto res =
+            jvm_env->CallBooleanMethod(wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "reopenFile", "()Z"));
+        !res)
+        return false;
+    else
+    {
+        m_meta.series_count = getSeriesCount();
+        return true;
+    }
+}
+
 void Reader::impl::setSeries(int no)
 {
     if (no < 0 || no >= m_meta.series_count)
@@ -405,6 +431,7 @@ std::array<int, 4> Reader::impl::getChannelColor(int channel)
     jint* body = jvm_env->GetIntArrayElements(channelColor, nullptr);
     std::memcpy(color.data(), body, sizeof(jint) * len);
     jvm_env->ReleaseIntArrayElements(channelColor, body, JNI_ABORT);
+    jvm_env->DeleteLocalRef(channelColor);
     return color;
 }
 
@@ -437,6 +464,7 @@ std::array<int, 3> Reader::impl::getZCTCoords(int index)
     jint* body = jvm_env->GetIntArrayElements(zct, nullptr);
     std::memcpy(coord.data(), body, sizeof(jint) * len);
     jvm_env->ReleaseIntArrayElements(zct, body, JNI_ABORT);
+    jvm_env->DeleteLocalRef(zct);
     return coord;
 }
 
@@ -456,6 +484,14 @@ std::unique_ptr<char[]> Reader::impl::getPlane(int no)
     std::memcpy(bytes.get(), body, sizeof(jbyte) * len);
 
     jvm_env->ReleaseByteArrayElements(byteArray, body, JNI_ABORT);
+    jvm_env->DeleteLocalRef(byteArray);
+
+    //force_gc();  // 340M -> 170M with 11-12ms time cost (non-force: 1-2ms time cost)
 
     return bytes;
+}
+
+void Reader::impl::force_gc()
+{
+    jvm_env->CallStaticVoidMethod(system_cls, jvm_env->GetStaticMethodID(system_cls, "gc", "()V"));
 }

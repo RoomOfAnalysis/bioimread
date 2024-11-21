@@ -10,6 +10,8 @@
 #include <dlfcn.h>
 #endif // _WIN32
 
+//#define DEBUG_GC
+
 JVMWrapper* JVMWrapper::m_jvm_wrapper_instance_ptr = nullptr;
 JVMWrapper::JNI_CreateJavaVMFuncPtr JVMWrapper::m_jni_create_jvm_func_ptr = nullptr;
 JavaVM* JVMWrapper::m_jvm_ptr = nullptr;
@@ -148,17 +150,21 @@ bool JVMWrapper::createJVM(std::vector<std::string> args)
         if (entry.path().extension() == ".jar") java_class_path += "/" + entry.path().string() + ";";
 
     // JNI initialization
-    auto* options = new JavaVMOption[1];
-    options[0].optionString = const_cast<char*>(java_class_path.c_str());
+    std::vector<JavaVMOption> options;
+    options.push_back(JavaVMOption{.optionString = const_cast<char*>("-Xmx256m")});
+    options.push_back(JavaVMOption{.optionString = const_cast<char*>(java_class_path.c_str())});
+#ifdef DEBUG_GC
+    // https://www.ibm.com/docs/en/sdk-java-technology/8?topic=data-xtgc-tracing
+    options.push_back(JavaVMOption{.optionString = const_cast<char*>("-verbose:gc")});
+#endif
 
     JavaVMInitArgs vm_args;
     vm_args.version = JNI_VERSION_1_8;
-    vm_args.nOptions = 1;
-    vm_args.options = options;
+    vm_args.nOptions = options.size();
+    vm_args.options = options.data();
     vm_args.ignoreUnrecognized = false;
 
     jint rc = m_jni_create_jvm_func_ptr(&m_jvm_ptr, (void**)&m_jni_env_ptr, &vm_args);
-    delete[] options;
     if (rc != JNI_OK)
     {
         std::cerr << "Error creating JVM: " << rc << std::endl;
