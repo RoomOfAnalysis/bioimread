@@ -52,6 +52,7 @@ set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 file(GLOB PROJECT_SOURCES LIST_DIRECTORIES false CONFIGURE_DEPENDS
     ${SRC_DIR}/*.hpp
     ${SRC_DIR}/*.cpp
+    ${SRC_DIR}/*.ui
     ${SRC_DIR}/utils/*.hpp
     ${SRC_DIR}/utils/*.cpp
 )

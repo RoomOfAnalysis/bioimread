@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Image5DViewer</class>
+ <widget class="QWidget" name="Image5DViewer">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>800</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Image5DViewer</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,8,1,1">
+   <item>
+    <widget class="QPushButton" name="btn">
+     <property name="text">
+      <string>Open</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="viewer">
+     <property name="styleSheet">
+      <string notr="true">background-color: rgb(255, 255, 0);</string>
+     </property>
+     <property name="text">
+      <string/>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_6" stretch="1,1,1,1">
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,1,0">
+       <item>
+        <widget class="QLabel" name="label_2">
+         <property name="text">
+          <string>Series:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QSlider" name="slider_s">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QSpinBox" name="s_sbox"/>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="0,1,0">
+       <item>
+        <widget class="QLabel" name="label_5">
+         <property name="text">
+          <string>Z Stack:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QSlider" name="slider_z">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QSpinBox" name="z_sbox"/>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="0,1,0">
+       <item>
+        <widget class="QLabel" name="label_6">
+         <property name="text">
+          <string>ColorChannel:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QSlider" name="slider_c">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QSpinBox" name="c_sbox"/>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_5" stretch="0,1,0">
+       <item>
+        <widget class="QLabel" name="label_7">
+         <property name="text">
+          <string>TimePoint:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QSlider" name="slider_t">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QSpinBox" name="t_sbox"/>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QLabel" name="status">
+     <property name="styleSheet">
+      <string notr="true">background-color: rgb(85, 170, 127);</string>
+     </property>
+     <property name="text">
+      <string/>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
