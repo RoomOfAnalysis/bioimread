@@ -52,11 +52,12 @@ set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 file(GLOB PROJECT_SOURCES LIST_DIRECTORIES false CONFIGURE_DEPENDS
     ${SRC_DIR}/*.hpp
     ${SRC_DIR}/*.cpp
+    ${SRC_DIR}/utils/*.hpp
+    ${SRC_DIR}/utils/*.cpp
 )
 
 add_executable(${PROJECT_NAME}
     ${PROJECT_SOURCES}
-    ${SRC_DIR}/utils/gray16.cpp ${SRC_DIR}/utils/gray16.hpp
 )
 
 target_include_directories(${PROJECT_NAME}

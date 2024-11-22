@@ -3,6 +3,7 @@
 #include <string>
 #include <array>
 #include <memory>
+#include <vector>
 
 class Reader
 {
@@ -56,9 +57,11 @@ public:
     std::array<int, 4> getChannelColor(int channel) const;
     int getPlaneSize() const;
 
-    int getPlaneIndex(int z, int c, int t);
-    std::array<int, 3> getZCTCoords(int index);
-    std::unique_ptr<char[]> getPlane(int no);
+    int getPlaneIndex(int z, int c, int t) const;
+    std::array<int, 3> getZCTCoords(int index) const;
+    std::unique_ptr<char[]> getPlane(int no) const;
+    std::unique_ptr<std::vector<std::array<unsigned char, 3>>> get8BitLut() const;
+    std::unique_ptr<std::vector<std::array<short, 3>>> get16BitLut() const;
 
 private:
     struct impl;

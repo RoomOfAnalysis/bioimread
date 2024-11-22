@@ -8,9 +8,7 @@
 #include <QPushButton>
 
 #include "bfwrapper/reader.hpp"
-#include "utils/gray16.hpp"
-
-#define USE_FALSE_COLOR
+#include "utils/plane2qimg.hpp"
 
 int main(int argc, char* argv[])
 {
@@ -30,18 +28,7 @@ int main(int argc, char* argv[])
     {
         reader->setSeries(0);
         auto cur = reader->getImageCount() / 2;
-        auto qformat = reader->getPixelType() == Reader::PixelType::UINT16 ? QImage::Format_Grayscale16 :
-                                                                             QImage::Format_Grayscale8;
-        QImage qimg = QImage((uchar*)reader->getPlane(cur).get(), reader->getSizeX(), reader->getSizeY(),
-                             reader->getSizeX() * reader->getBytesPerPixel(), qformat)
-                          .copy();
-        if (qformat == QImage::Format_Grayscale16)
-#ifdef USE_FALSE_COLOR
-            qimg = falseColor(qimg);
-#else
-            qimg = gray16ToGray8(qimg);
-#endif
-
+        QImage qimg = readPlaneToQimage(*reader, cur);
         auto label = new QLabel;
         label->setPixmap(QPixmap::fromImage(qimg));
 
@@ -50,36 +37,20 @@ int main(int argc, char* argv[])
 
         auto prev = new QPushButton("prev");
         auto next = new QPushButton("next");
-        QObject::connect(prev, &QPushButton::pressed, [&reader, &txt, &label, qformat]() {
+        QObject::connect(prev, &QPushButton::pressed, [&reader, &txt, &label]() {
             if (auto cur = txt->text().toInt(); cur > 0)
             {
                 cur--;
-                QImage qimg = QImage((uchar*)reader->getPlane(cur).get(), reader->getSizeX(), reader->getSizeY(),
-                                     reader->getSizeX() * reader->getBytesPerPixel(), qformat)
-                                  .copy();
-                if (qformat == QImage::Format_Grayscale16)
-#ifdef USE_FALSE_COLOR
-                    qimg = falseColor(qimg);
-#else
-                    qimg = gray16ToGray8(qimg);
-#endif
+                QImage qimg = readPlaneToQimage(*reader, cur);
                 label->setPixmap(QPixmap::fromImage(qimg));
                 txt->setText(QString::number(cur));
             }
         });
-        QObject::connect(next, &QPushButton::pressed, [&reader, &txt, &label, qformat]() {
+        QObject::connect(next, &QPushButton::pressed, [&reader, &txt, &label]() {
             if (auto cur = txt->text().toInt(); cur < reader->getImageCount() - 1)
             {
                 cur++;
-                QImage qimg = QImage((uchar*)reader->getPlane(cur).get(), reader->getSizeX(), reader->getSizeY(),
-                                     reader->getSizeX() * reader->getBytesPerPixel(), qformat)
-                                  .copy();
-                if (qformat == QImage::Format_Grayscale16)
-#ifdef USE_FALSE_COLOR
-                    qimg = falseColor(qimg);
-#else
-                    qimg = gray16ToGray8(qimg);
-#endif
+                QImage qimg = readPlaneToQimage(*reader, cur);
                 label->setPixmap(QPixmap::fromImage(qimg));
                 txt->setText(QString::number(cur));
             }

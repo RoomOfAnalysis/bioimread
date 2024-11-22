@@ -64,6 +64,8 @@ struct Reader::impl
     int getPlaneIndex(int z, int c, int t);
     std::array<int, 3> getZCTCoords(int index);
     std::unique_ptr<char[]> getPlane(int no);
+    std::unique_ptr<std::vector<std::array<unsigned char, 3>>> get8BitLut();
+    std::unique_ptr<std::vector<std::array<short, 3>>> get16BitLut();
 
     void force_gc();
 };
@@ -167,7 +169,7 @@ int Reader::getSizeZ() const
 
 int Reader::getSizeC() const
 {
-    return pimpl->m_meta.size_z;
+    return pimpl->m_meta.size_c;
 }
 
 int Reader::getSizeT() const
@@ -220,19 +222,29 @@ int Reader::getPlaneSize() const
     return pimpl->m_meta.plane_size;
 }
 
-int Reader::getPlaneIndex(int z, int c, int t)
+int Reader::getPlaneIndex(int z, int c, int t) const
 {
     return pimpl->getPlaneIndex(z, c, t);
 }
 
-std::array<int, 3> Reader::getZCTCoords(int index)
+std::array<int, 3> Reader::getZCTCoords(int index) const
 {
     return pimpl->getZCTCoords(index);
 }
 
-std::unique_ptr<char[]> Reader::getPlane(int no)
+std::unique_ptr<char[]> Reader::getPlane(int no) const
 {
     return pimpl->getPlane(no);
+}
+
+std::unique_ptr<std::vector<std::array<unsigned char, 3>>> Reader::get8BitLut() const
+{
+    return pimpl->get8BitLut();
+}
+
+std::unique_ptr<std::vector<std::array<short, 3>>> Reader::get16BitLut() const
+{
+    return pimpl->get16BitLut();
 }
 
 std::string Reader::pixelTypeStr(PixelType pt)
@@ -299,6 +311,7 @@ bool Reader::impl::open(std::string filePath)
 void Reader::impl::close()
 {
     jvm_env->CallVoidMethod(wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "close", "()V"));
+    m_meta.series = -1;
 }
 
 bool Reader::impl::reopen()
@@ -489,6 +502,68 @@ std::unique_ptr<char[]> Reader::impl::getPlane(int no)
     //force_gc();  // 340M -> 170M with 11-12ms time cost (non-force: 1-2ms time cost)
 
     return bytes;
+}
+
+std::unique_ptr<std::vector<std::array<unsigned char, 3>>> Reader::impl::get8BitLut()
+{
+    auto lut = std::make_unique<std::vector<std::array<unsigned char, 3>>>();
+    jmethodID get8BitLookupTableMethod = jvm_env->GetMethodID(wrapper_cls, "get8BitLookupTable", "()[[B");
+    jobjectArray bytesArray = (jobjectArray)jvm_env->CallObjectMethod(wrapper_instance, get8BitLookupTableMethod);
+    if (bytesArray != nullptr)
+    {
+        assert(jvm_env->GetArrayLength(bytesArray) == 3); // RGB 3 channels
+
+        auto b0 = (jbyteArray)jvm_env->GetObjectArrayElement(bytesArray, 0);
+        jsize len = jvm_env->GetArrayLength(b0);
+        jvm_env->DeleteLocalRef(b0);
+        lut->resize(len);
+
+        std::vector<unsigned char> buffer(len);
+        for (jsize i = 0; i < 3; i++)
+        {
+            jbyteArray b = (jbyteArray)jvm_env->GetObjectArrayElement(bytesArray, i);
+            jbyte* body = jvm_env->GetByteArrayElements(b, nullptr);
+            std::memcpy(buffer.data(), body, sizeof(jbyte) * len);
+            jvm_env->ReleaseByteArrayElements(b, body, JNI_ABORT);
+            jvm_env->DeleteLocalRef(b);
+
+            for (auto j = 0; j < len; j++)
+                (*lut)[j][i] = buffer[j];
+        }
+    }
+    jvm_env->DeleteLocalRef(bytesArray);
+    return lut;
+}
+
+std::unique_ptr<std::vector<std::array<short, 3>>> Reader::impl::get16BitLut()
+{
+    auto lut = std::make_unique<std::vector<std::array<short, 3>>>();
+    jmethodID get16BitLookupTableMethod = jvm_env->GetMethodID(wrapper_cls, "get16BitLookupTable", "()[[S");
+    jobjectArray bytesArray = (jobjectArray)jvm_env->CallObjectMethod(wrapper_instance, get16BitLookupTableMethod);
+    if (bytesArray != nullptr)
+    {
+        assert(jvm_env->GetArrayLength(bytesArray) == 3); // RGB 3 channels
+
+        auto b0 = (jshortArray)jvm_env->GetObjectArrayElement(bytesArray, 0);
+        jsize len = jvm_env->GetArrayLength(b0);
+        jvm_env->DeleteLocalRef(b0);
+        lut->resize(len);
+
+        std::vector<short> buffer(len);
+        for (jsize i = 0; i < 3; i++)
+        {
+            jshortArray b = (jshortArray)jvm_env->GetObjectArrayElement(bytesArray, i);
+            jshort* body = jvm_env->GetShortArrayElements(b, nullptr);
+            std::memcpy(buffer.data(), body, sizeof(jshort) * len);
+            jvm_env->ReleaseShortArrayElements(b, body, JNI_ABORT);
+            jvm_env->DeleteLocalRef(b);
+
+            for (auto j = 0; j < len; j++)
+                (*lut)[j][i] = buffer[j];
+        }
+    }
+    jvm_env->DeleteLocalRef(bytesArray);
+    return lut;
 }
 
 void Reader::impl::force_gc()
