@@ -19,6 +19,7 @@ public:
 private:
     void openFile();
     void update(bool);
+    void resetSliders();
 
 private:
     Ui::Image5DViewer* ui;

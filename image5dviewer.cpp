@@ -2,6 +2,9 @@
 #include "ui_image5dviewer.h"
 
 #include <QFileDialog>
+#include <QMimeDatabase>
+#include <QImageReader>
+#include <QMovie>
 
 #include "bfwrapper/reader.hpp"
 #include "utils/plane2qimg.hpp"
@@ -36,6 +39,49 @@ void Image5DViewer::openFile()
     if (filePath.isEmpty()) return;
 
     reader->close();
+
+    QString format;
+    QMimeDatabase mime_db;
+    auto mime_type = mime_db.mimeTypeForFile(filePath, QMimeDatabase::MatchContent);
+    auto mime_name = mime_type.name().toUtf8();
+    if (mime_name == "image/jpeg")
+        format = "jpg";
+    else if (mime_name == "image/png")
+        format = "png";
+    else if (mime_name == "image/gif")
+        format = "gif";
+    else if (mime_name == "image/webp" ||
+             (mime_name == "audio/x-riff" && QFileInfo(filePath).suffix().toLower().toUtf8() == "webp"))
+        format = "webp";
+    else if (mime_name == "image/jxl")
+        format = "jxl";
+    else if (mime_name == "image/bmp")
+        format = "bmp";
+    // handle plain image with qt
+    if (!format.isEmpty())
+    {
+        if (format == "gif")
+        {
+            QMovie* movie = new QMovie(filePath);
+            if (movie->isValid())
+            {
+                movie->setScaledSize(ui->viewer->size());
+                ui->viewer->setMovie(movie);
+                movie->start();
+                resetSliders();
+                return;
+            }
+        }
+        QImageReader qreader(filePath, format.toUtf8());
+        if (qreader.canRead())
+        {
+            ui->viewer->setPixmap(QPixmap::fromImage(
+                qreader.read().scaled(ui->viewer->width(), ui->viewer->height(), Qt::KeepAspectRatio)));
+            resetSliders();
+            return;
+        }
+    }
+
     auto succeed = reader->open(filePath.toStdString());
     ui->slider_s->setEnabled(succeed);
     ui->slider_z->setEnabled(succeed);
@@ -124,4 +170,39 @@ void Image5DViewer::update(bool is_slider)
     auto qimg = readPlaneToQimage(*reader, plane);
     ui->viewer->setPixmap(
         QPixmap::fromImage(qimg.scaled(ui->viewer->width(), ui->viewer->height(), Qt::KeepAspectRatio)));
+}
+
+void Image5DViewer::resetSliders()
+{
+    const QSignalBlocker bss(ui->slider_s);
+    const QSignalBlocker bsz(ui->slider_z);
+    const QSignalBlocker bsc(ui->slider_c);
+    const QSignalBlocker bst(ui->slider_t);
+
+    const QSignalBlocker bsbs(ui->s_sbox);
+    const QSignalBlocker bsbz(ui->z_sbox);
+    const QSignalBlocker bsbc(ui->c_sbox);
+    const QSignalBlocker bsbt(ui->t_sbox);
+
+    ui->slider_s->setMaximum(0);
+    ui->slider_z->setMaximum(0);
+    ui->slider_c->setMaximum(0);
+    ui->slider_t->setMaximum(0);
+
+    ui->slider_s->setValue(0);
+    ui->slider_z->setValue(0);
+    ui->slider_c->setValue(0);
+    ui->slider_t->setValue(0);
+
+    ui->s_sbox->setMaximum(0);
+    ui->z_sbox->setMaximum(0);
+    ui->c_sbox->setMaximum(0);
+    ui->t_sbox->setMaximum(0);
+
+    ui->s_sbox->setValue(0);
+    ui->z_sbox->setValue(0);
+    ui->c_sbox->setValue(0);
+    ui->t_sbox->setValue(0);
+
+    ui->status->setText("Plain Image");
 }
