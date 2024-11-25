@@ -4,6 +4,7 @@
 #include <array>
 #include <memory>
 #include <vector>
+#include <optional>
 
 class Reader
 {
@@ -54,7 +55,7 @@ public:
     PixelType getPixelType() const;
     int getBytesPerPixel() const;
     int getRGBChannelCount() const;
-    std::array<int, 4> getChannelColor(int channel) const;
+    std::optional<std::array<int, 4>> getChannelColor(int channel) const;
     int getPlaneSize() const;
 
     int getPlaneIndex(int z, int c, int t) const;

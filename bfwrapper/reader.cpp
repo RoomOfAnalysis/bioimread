@@ -29,7 +29,7 @@ struct Reader::impl
         double physical_size_t{};
         Reader::PixelType pixel_type{};
         int rgb_channel_count{};
-        std::vector<std::array<int, 4>> channel_colors{};
+        std::vector<std::optional<std::array<int, 4>>> channel_colors{};
         int plane_size{};
 
         void PrintSelf() const;
@@ -59,7 +59,7 @@ struct Reader::impl
     double getPhysSizeT();
     PixelType getPixelType();
     int getRGBChannelCount();
-    std::array<int, 4> getChannelColor(int channel);
+    std::optional<std::array<int, 4>> getChannelColor(int channel);
     int getPlaneSize();
     int getPlaneIndex(int z, int c, int t);
     std::array<int, 3> getZCTCoords(int index);
@@ -212,7 +212,7 @@ int Reader::getRGBChannelCount() const
     return pimpl->m_meta.rgb_channel_count;
 }
 
-std::array<int, 4> Reader::getChannelColor(int channel) const
+std::optional<std::array<int, 4>> Reader::getChannelColor(int channel) const
 {
     return pimpl->m_meta.channel_colors[channel];
 }
@@ -426,26 +426,28 @@ int Reader::impl::getRGBChannelCount()
     return jvm_env->CallIntMethod(wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "getRGBChannelCount", "()I"));
 }
 
-std::array<int, 4> Reader::impl::getChannelColor(int channel)
+std::optional<std::array<int, 4>> Reader::impl::getChannelColor(int channel)
 {
     assert(channel >= 0 && channel < getSizeC());
 
-    std::array<int, 4> color{};
+    std::optional<std::array<int, 4>> res;
 
     jintArray channelColor = (jintArray)jvm_env->CallObjectMethod(
         wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "getChannelColor", "(I)[I"), channel);
-
-    assert(channelColor != nullptr);
-
-    jsize len = jvm_env->GetArrayLength(channelColor);
-
-    assert(len == 4);
-
-    jint* body = jvm_env->GetIntArrayElements(channelColor, nullptr);
-    std::memcpy(color.data(), body, sizeof(jint) * len);
-    jvm_env->ReleaseIntArrayElements(channelColor, body, JNI_ABORT);
+    if (channelColor != nullptr)
+    {
+        jsize len = jvm_env->GetArrayLength(channelColor);
+        if (len == 4)
+        {
+            std::array<int, 4> color{};
+            jint* body = jvm_env->GetIntArrayElements(channelColor, nullptr);
+            std::memcpy(color.data(), body, sizeof(jint) * len);
+            jvm_env->ReleaseIntArrayElements(channelColor, body, JNI_ABORT);
+            res = color;
+        }
+    }
     jvm_env->DeleteLocalRef(channelColor);
-    return color;
+    return res;
 }
 
 int Reader::impl::getPlaneSize()

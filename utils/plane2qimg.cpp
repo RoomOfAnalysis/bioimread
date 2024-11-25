@@ -43,7 +43,7 @@ template <typename T> QImage toIndexed8(char* bytes, int width, int height, QLis
         qCritical() << "invalid min max range";
         return QImage();
     }
-    //qDebug() << "minMax: " << << min << max;
+    //qDebug() << "minMax: " << min << max;
     auto scale = 255. / (max - min);
     QImage img(width, height, QImage::Format::Format_Indexed8);
     if (lut.isEmpty())
@@ -88,6 +88,8 @@ QImage readPlaneToQimage(Reader const& reader, int plane_index)
     // here just ignore 16bit lut...
     auto lut = prepareLut(lut8.get());
 
+    //qDebug() << rgbChannelCount << Reader::pixelTypeStr(type) << bytesPerPixel << width << height;
+
     if (rgbChannelCount == 1)
     {
         switch (type)
@@ -122,7 +124,7 @@ QImage readPlaneToQimage(Reader const& reader, int plane_index)
     else if (rgbChannelCount == 3)
     {
         if (type == Reader::PixelType::UINT8)
-            return QImage((uchar*)bytes, width, height, static_cast<qsizetype>(width) * bytesPerPixel,
+            return QImage((uchar*)bytes, width, height, static_cast<qsizetype>(width) * bytesPerPixel * 3,
                           QImage::Format::Format_RGB888)
                 .copy();
         else
@@ -139,15 +141,15 @@ QImage readPlaneToQimage(Reader const& reader, int plane_index)
         switch (type)
         {
         case Reader::PixelType::UINT8:
-            return QImage((uchar*)bytes, width, height, static_cast<qsizetype>(width) * bytesPerPixel,
+            return QImage((uchar*)bytes, width, height, static_cast<qsizetype>(width) * bytesPerPixel * 4,
                           QImage::Format::Format_RGBA8888)
                 .copy();
         case Reader::PixelType::UINT16:
-            return QImage((uchar*)bytes, width, height, static_cast<qsizetype>(width) * bytesPerPixel,
+            return QImage((uchar*)bytes, width, height, static_cast<qsizetype>(width) * bytesPerPixel * 4,
                           QImage::Format::Format_RGBA64)
                 .copy();
         case Reader::PixelType::FLOAT:
-            return QImage((uchar*)bytes, width, height, static_cast<qsizetype>(width) * bytesPerPixel,
+            return QImage((uchar*)bytes, width, height, static_cast<qsizetype>(width) * bytesPerPixel * 4,
                           QImage::Format::Format_RGBA32FPx4)
                 .copy();
         default:
