@@ -46,6 +46,7 @@ find_package(JNI REQUIRED)
 
 add_subdirectory(bfwrapper)
 add_subdirectory(series_reader)
+add_subdirectory(volume_viewer)
 
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
