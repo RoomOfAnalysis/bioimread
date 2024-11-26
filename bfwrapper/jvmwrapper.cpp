@@ -172,7 +172,7 @@ bool JVMWrapper::createJVM(std::vector<std::string> args)
     }
 
     jint ver = m_jni_env_ptr->GetVersion();
-    std::cout << "JVM created successfully: Version" << ((ver >> 16) & 0x0f) << "." << (ver & 0x0f);
+    std::cout << "JVM created successfully: Version" << ((ver >> 16) & 0x0f) << "." << (ver & 0x0f) << std::endl;
     return true;
 }
 
