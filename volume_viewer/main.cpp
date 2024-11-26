@@ -27,9 +27,12 @@ int main(int argc, char* argv[])
     reader.open(argv[1]);
     reader.setSeries(series);
 
-    // TODO: enumerate with type
     auto type = reader.getPixelType();
-    assert(type == Reader::PixelType::UINT8);
+    if (type == Reader::PixelType::BIT || type == Reader::PixelType::INT8 || type == Reader::PixelType::UINT32)
+    {
+        std::cerr << "Error: " << Reader::pixelTypeStr(type) << " not supported by VTK";
+        return -1;
+    }
 
     auto width = reader.getSizeX();
     auto height = reader.getSizeY();
@@ -37,9 +40,16 @@ int main(int argc, char* argv[])
     auto sx = reader.getPhysSizeX();
     auto sy = reader.getPhysSizeY();
     auto sz = reader.getPhysSizeZ();
+    // FIXME: some image sz == 0...
+    if (sz == 0) sz = sx;
     auto bytesPerPixel = reader.getBytesPerPixel();
     auto rgbChannelCount = reader.getRGBChannelCount();
     auto planeSize = reader.getPlaneSize();
+
+    std::cout << "pixel type: " << Reader::pixelTypeStr(type) << ", width: " << width << ", height: " << height
+              << ", depth: " << depth << ", physicalX: " << sx << ", physicalY: " << sy << ", physicalZ: " << sz
+              << ", bytesPerPixel: " << bytesPerPixel << ", rgbChannelCount: " << rgbChannelCount
+              << ", planeSize: " << planeSize << std::endl;
 
     reader.getPlane(reader.getPlaneIndex(0, channel, timepoint));
     auto lut = reader.get8BitLut();
@@ -55,12 +65,35 @@ int main(int argc, char* argv[])
     }
 
     vtkNew<vtkImageImport> imageImport;
+    switch (type)
+    {
+    case Reader::PixelType::UINT8:
+        imageImport->SetDataScalarTypeToUnsignedChar();
+        break;
+    case Reader::PixelType::INT16:
+        imageImport->SetDataScalarTypeToShort();
+        break;
+    case Reader::PixelType::UINT16:
+        imageImport->SetDataScalarTypeToUnsignedShort();
+        break;
+    case Reader::PixelType::INT32:
+        imageImport->SetDataScalarTypeToInt();
+        break;
+    case Reader::PixelType::FLOAT:
+        imageImport->SetDataScalarTypeToFloat();
+        break;
+    case Reader::PixelType::DOUBLE:
+        imageImport->SetDataScalarTypeToDouble();
+        break;
+    default:
+        std::cerr << "Error: " << Reader::pixelTypeStr(type) << " not supported by VTK";
+        return -1;
+    }
     imageImport->SetDataSpacing(sx, sy, sz);
     imageImport->SetDataOrigin(0, 0, 0);
     imageImport->SetWholeExtent(0, width - 1, 0, height - 1, 0, depth - 1);
     imageImport->SetDataExtentToWholeExtent();
     imageImport->SetNumberOfScalarComponents(rgbChannelCount);
-    imageImport->SetDataScalarTypeToUnsignedChar();
     imageImport->SetImportVoidPointer((void*)buffer.get());
     imageImport->Update();
 
@@ -70,25 +103,28 @@ int main(int argc, char* argv[])
     mapper->AutoAdjustSampleDistancesOn();
     mapper->SetBlendModeToMaximumIntensity(); // MIP
 
-    vtkNew<vtkColorTransferFunction> colorTransferFunction;
-    colorTransferFunction->RemoveAllPoints();
-    for (auto i = 0; i < lut->size(); i++)
-    {
-        auto [r, g, b] = (*lut)[i];
-        colorTransferFunction->AddRGBPoint(i, r / 255., g / 255., b / 255.);
-    }
-
-    vtkNew<vtkPiecewiseFunction> scalarOpacity;
-    scalarOpacity->AddSegment(0, 1.0, 256, 0.1);
-
-    vtkNew<vtkVolumeProperty> volumeProperty;
-    volumeProperty->SetInterpolationTypeToLinear();
-    volumeProperty->SetColor(colorTransferFunction);
-    volumeProperty->SetScalarOpacity(scalarOpacity);
-
     vtkNew<vtkVolume> volume;
     volume->SetMapper(mapper);
-    volume->SetProperty(volumeProperty);
+
+    if (lut)
+    {
+        vtkNew<vtkColorTransferFunction> colorTransferFunction;
+        colorTransferFunction->RemoveAllPoints();
+        for (auto i = 0; i < lut->size(); i++)
+        {
+            auto [r, g, b] = (*lut)[i];
+            colorTransferFunction->AddRGBPoint(i, r / 255., g / 255., b / 255.);
+        }
+
+        vtkNew<vtkPiecewiseFunction> scalarOpacity;
+        scalarOpacity->AddSegment(0, 1.0, 256, 0.1);
+
+        vtkNew<vtkVolumeProperty> volumeProperty;
+        volumeProperty->SetInterpolationTypeToLinear();
+        volumeProperty->SetColor(colorTransferFunction);
+        volumeProperty->SetScalarOpacity(scalarOpacity);
+        volume->SetProperty(volumeProperty);
+    }
 
     vtkNew<vtkNamedColors> colors;
 
