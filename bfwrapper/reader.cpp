@@ -296,16 +296,11 @@ void Reader::impl::meta::PrintSelf() const
 bool Reader::impl::open(std::string filePath)
 {
     jstring filePathJava = jvm_env->NewStringUTF(filePath.c_str());
-
-    if (auto res = jvm_env->CallBooleanMethod(
-            wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "setId", "(Ljava/lang/String;)Z"), filePathJava);
-        !res)
-        return false;
-    else
-    {
-        m_meta.series_count = getSeriesCount();
-        return true;
-    }
+    auto res = jvm_env->CallBooleanMethod(
+        wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "setId", "(Ljava/lang/String;)Z"), filePathJava);
+    jvm_env->DeleteLocalRef(filePathJava);
+    if (res) m_meta.series_count = getSeriesCount();
+    return res;
 }
 
 void Reader::impl::close()
@@ -440,9 +435,7 @@ std::optional<std::array<int, 4>> Reader::impl::getChannelColor(int channel)
         if (len == 4)
         {
             std::array<int, 4> color{};
-            jint* body = jvm_env->GetIntArrayElements(channelColor, nullptr);
-            std::memcpy(color.data(), body, sizeof(jint) * len);
-            jvm_env->ReleaseIntArrayElements(channelColor, body, JNI_ABORT);
+            jvm_env->GetIntArrayRegion(channelColor, 0, len, (jint*)color.data());
             res = color;
         }
     }
@@ -476,9 +469,7 @@ std::array<int, 3> Reader::impl::getZCTCoords(int index)
 
     assert(len == 3);
 
-    jint* body = jvm_env->GetIntArrayElements(zct, nullptr);
-    std::memcpy(coord.data(), body, sizeof(jint) * len);
-    jvm_env->ReleaseIntArrayElements(zct, body, JNI_ABORT);
+    jvm_env->GetIntArrayRegion(zct, 0, len, (jint*)coord.data());
     jvm_env->DeleteLocalRef(zct);
     return coord;
 }
@@ -491,14 +482,8 @@ std::unique_ptr<char[]> Reader::impl::getPlane(int no)
     assert(byteArray != nullptr);
 
     jsize len = jvm_env->GetArrayLength(byteArray);
-    jbyte* body = jvm_env->GetByteArrayElements(byteArray, nullptr);
-
-    // TODO: direct buffer
     auto bytes = std::make_unique<char[]>(sizeof(jbyte) * len);
-
-    std::memcpy(bytes.get(), body, sizeof(jbyte) * len);
-
-    jvm_env->ReleaseByteArrayElements(byteArray, body, JNI_ABORT);
+    jvm_env->GetByteArrayRegion(byteArray, 0, len, (jbyte*)bytes.get());
     jvm_env->DeleteLocalRef(byteArray);
 
     //force_gc();  // 340M -> 170M with 11-12ms time cost (non-force: 1-2ms time cost)
@@ -524,9 +509,7 @@ std::unique_ptr<std::vector<std::array<unsigned char, 3>>> Reader::impl::get8Bit
         for (jsize i = 0; i < 3; i++)
         {
             jbyteArray b = (jbyteArray)jvm_env->GetObjectArrayElement(bytesArray, i);
-            jbyte* body = jvm_env->GetByteArrayElements(b, nullptr);
-            std::memcpy(buffer.data(), body, sizeof(jbyte) * len);
-            jvm_env->ReleaseByteArrayElements(b, body, JNI_ABORT);
+            jvm_env->GetByteArrayRegion(b, 0, len, (jbyte*)buffer.data());
             jvm_env->DeleteLocalRef(b);
 
             for (auto j = 0; j < len; j++)
@@ -555,9 +538,7 @@ std::unique_ptr<std::vector<std::array<short, 3>>> Reader::impl::get16BitLut()
         for (jsize i = 0; i < 3; i++)
         {
             jshortArray b = (jshortArray)jvm_env->GetObjectArrayElement(bytesArray, i);
-            jshort* body = jvm_env->GetShortArrayElements(b, nullptr);
-            std::memcpy(buffer.data(), body, sizeof(jshort) * len);
-            jvm_env->ReleaseShortArrayElements(b, body, JNI_ABORT);
+            jvm_env->GetShortArrayRegion(b, 0, len, (jshort*)buffer.data());
             jvm_env->DeleteLocalRef(b);
 
             for (auto j = 0; j < len; j++)

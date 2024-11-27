@@ -1,10 +1,19 @@
 import java.io.Closeable;
+// import java.io.File;
 import java.io.IOException;
+// import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+// import java.nio.MappedByteBuffer;
+// import java.nio.channels.FileChannel;
+// import java.nio.channels.FileChannel.MapMode;
+
 import loci.common.DataTools;
 import loci.common.DebugTools;
 import loci.common.services.ServiceFactory;
 import loci.common.xml.XMLTools;
 import loci.formats.FormatTools;
+import loci.formats.IFormatReader;
 import loci.formats.ImageReader;
 import loci.formats.meta.IMetadata;
 import loci.formats.meta.MetadataRetrieve;
@@ -15,14 +24,18 @@ import ome.units.quantity.Length;
 import ome.units.quantity.Time;
 
 public class bfwrapper implements Closeable {
-    private ImageReader reader;
+    private IFormatReader reader;
     private OMEXMLService service;
     private IMetadata meta;
+    // private MappedByteBuffer mapped_buffer;
 
     public bfwrapper() {
         try {
             DebugTools.setRootLevel("ERROR");
             reader = new ImageReader();
+            reader.setMetadataFiltered(true);
+            reader.setOriginalMetadataPopulated(true);
+            reader.setGroupFiles(false);
             ServiceFactory factory = new ServiceFactory();
             service = factory.getInstance(OMEXMLService.class);
             meta = service.createOMEXMLMetadata();
@@ -374,6 +387,43 @@ public class bfwrapper implements Closeable {
                 reader
                         .isLittleEndian()));
     }
+
+    public void openPlane(int no, ByteBuffer buffer) {
+        buffer.clear();
+        buffer.order(ByteOrder.LITTLE_ENDIAN);
+        buffer.put(openPlane(no));
+    }
+
+    public boolean openPlanes(int start, int length, ByteBuffer buffer) {
+        try {
+            buffer.clear();
+            buffer.order(ByteOrder.LITTLE_ENDIAN);
+            for (int i = 0; i < length; i++)
+                buffer.put(openPlane(i + start));
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    // public boolean openPlanes(int start, int length) {
+    // try {
+    // if (mapped_buffer == null) {
+    // mapped_buffer = new RandomAccessFile(File.createTempFile("tmp", null),
+    // "rw").getChannel()
+    // .map(MapMode.READ_WRITE, 0, Integer.MAX_VALUE);
+    // mapped_buffer.order(ByteOrder.LITTLE_ENDIAN);
+    // }
+    // mapped_buffer.clear();
+    // for (int i = 0; i < length; i++)
+    // mapped_buffer.put(openPlane(i + start));
+    // return true;
+    // } catch (Exception e) {
+    // e.printStackTrace();
+    // return false;
+    // }
+    // }
 
     /**
      * Gets the rasterized index corresponding

@@ -26,18 +26,18 @@ add_jar(${PROJECT_NAME}
     ENTRY_POINT ${PROJECT_NAME}
 )
 
-add_executable(showinfo
+add_executable(${PROJECT_NAME}_test
     jvmwrapper.cpp jvmwrapper.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/showinfo.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
 )
-add_dependencies(showinfo
+add_dependencies(${PROJECT_NAME}_test
     ${PROJECT_NAME}
 )
 
-target_include_directories(showinfo
+target_include_directories(${PROJECT_NAME}_test
     PRIVATE ${JNI_INCLUDE_DIRS}
 )
-target_link_libraries(showinfo
+target_link_libraries(${PROJECT_NAME}_test
     PRIVATE ${JNI_LIBRARIES}
     PRIVATE ${OpenCV_LIBS}
 )
