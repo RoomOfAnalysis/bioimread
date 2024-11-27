@@ -1,5 +1,8 @@
 import java.io.Closeable;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+
 import loci.common.DataTools;
 import loci.common.DebugTools;
 import loci.common.services.ServiceFactory;
@@ -373,6 +376,25 @@ public class bfwrapper implements Closeable {
                 .isFloatingPoint(reader.getPixelType()),
                 reader
                         .isLittleEndian()));
+    }
+
+    public void openPlane(int no, ByteBuffer buffer) {
+        buffer.clear();
+        buffer.order(ByteOrder.LITTLE_ENDIAN);
+        buffer.put(openPlane(no));
+    }
+
+    public boolean openPlanes(int start, int length, ByteBuffer buffer) {
+        try {
+            buffer.clear();
+            buffer.order(ByteOrder.LITTLE_ENDIAN);
+            for (int i = 0; i < length; i++)
+                buffer.put(openPlane(i + start));
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     /**
