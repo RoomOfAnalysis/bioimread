@@ -50,7 +50,8 @@ int main(int argc, char* argv[])
               << ", planeSize: " << planeSize << std::endl;
 
     reader.getPlane(reader.getPlaneIndex(0, channel, timepoint));
-    auto lut = reader.get8BitLut();
+    auto lut8 = reader.get8BitLut();
+    auto lut16 = reader.get16BitLut();
 
     size_t dataSize = (size_t)planeSize * depth;
     auto buffer = std::make_unique<unsigned char[]>(dataSize);
@@ -104,14 +105,27 @@ int main(int argc, char* argv[])
     vtkNew<vtkVolume> volume;
     volume->SetMapper(mapper);
 
-    if (lut)
+    if (lut8 || lut16)
     {
         vtkNew<vtkColorTransferFunction> colorTransferFunction;
         colorTransferFunction->RemoveAllPoints();
-        for (auto i = 0; i < lut->size(); i++)
+        if (lut8)
         {
-            auto [r, g, b] = (*lut)[i];
-            colorTransferFunction->AddRGBPoint(i, r / 255., g / 255., b / 255.);
+            std::cout << "use lut8" << std::endl;
+            for (auto i = 0; i < lut8->size(); i++)
+            {
+                auto [r, g, b] = (*lut8)[i];
+                colorTransferFunction->AddRGBPoint(i, r / 255., g / 255., b / 255.);
+            }
+        }
+        else
+        {
+            std::cout << "use lut16" << std::endl;
+            for (auto i = 0; i < lut16->size(); i++)
+            {
+                auto [r, g, b] = (*lut16)[i];
+                colorTransferFunction->AddRGBPoint(i, r / 65535., g / 65535., b / 65535.);
+            }
         }
 
         vtkNew<vtkPiecewiseFunction> scalarOpacity;
