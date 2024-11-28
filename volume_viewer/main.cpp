@@ -40,8 +40,6 @@ int main(int argc, char* argv[])
     auto sx = reader.getPhysSizeX();
     auto sy = reader.getPhysSizeY();
     auto sz = reader.getPhysSizeZ();
-    // FIXME: some image sz == 0...
-    if (sz == 0) sz = sx;
     auto bytesPerPixel = reader.getBytesPerPixel();
     auto rgbChannelCount = reader.getRGBChannelCount();
     auto planeSize = reader.getPlaneSize();

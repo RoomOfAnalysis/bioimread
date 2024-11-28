@@ -392,22 +392,22 @@ int Reader::impl::getSizeT()
 
 double Reader::impl::getPhysSizeX()
 {
-    return jvm_env->CallIntMethod(wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "getPhysSizeX", "()D"));
+    return jvm_env->CallDoubleMethod(wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "getPhysSizeX", "()D"));
 }
 
 double Reader::impl::getPhysSizeY()
 {
-    return jvm_env->CallIntMethod(wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "getPhysSizeY", "()D"));
+    return jvm_env->CallDoubleMethod(wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "getPhysSizeY", "()D"));
 }
 
 double Reader::impl::getPhysSizeZ()
 {
-    return jvm_env->CallIntMethod(wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "getPhysSizeZ", "()D"));
+    return jvm_env->CallDoubleMethod(wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "getPhysSizeZ", "()D"));
 }
 
 double Reader::impl::getPhysSizeT()
 {
-    return jvm_env->CallIntMethod(wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "getPhysSizeT", "()D"));
+    return jvm_env->CallDoubleMethod(wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "getPhysSizeT", "()D"));
 }
 
 Reader::PixelType Reader::impl::getPixelType()
