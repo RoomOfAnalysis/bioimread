@@ -136,8 +136,11 @@ bool JVMWrapper::createJVM(std::vector<std::string> args)
         std::cerr << "failed to load jvm.dll at: " << jvm_dll_path << std::endl;
         return false;
     }
-
+#ifdef _WIN32
     m_jni_create_jvm_func_ptr = (JVMWrapper::JNI_CreateJavaVMFuncPtr)GetProcAddress(m_jvm_dll, "JNI_CreateJavaVM");
+#else
+    m_jni_create_jvm_func_ptr = (JVMWrapper::JNI_CreateJavaVMFuncPtr)dlsym(m_jvm_dll, "JNI_CreateJavaVM");
+#endif
     if (m_jni_create_jvm_func_ptr == nullptr)
     {
         std::cerr << "failed to get jni create jvm func" << std::endl;

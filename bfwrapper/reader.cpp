@@ -326,7 +326,7 @@ void Reader::impl::setSeries(int no)
 {
     if (no < 0 || no >= m_meta.series_count)
     {
-        std::cerr << "Error: series " << no << " not in range of [0, " << m_meta.series_count << "]";
+        std::cerr << "Error: series " << no << " not in range of [0, " << m_meta.series_count << "]" << std::endl;
         return;
     }
     if (m_meta.series == no) return;
