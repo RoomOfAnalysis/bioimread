@@ -75,8 +75,9 @@ void Image5DViewer::openFile()
         QImageReader qreader(filePath, format.toUtf8());
         if (qreader.canRead())
         {
-            ui->viewer->setPixmap(QPixmap::fromImage(
-                qreader.read().scaled(ui->viewer->width(), ui->viewer->height(), Qt::KeepAspectRatio)));
+            curr_pixmap = QPixmap::fromImage(qreader.read());
+            ui->viewer->setPixmap(
+                curr_pixmap.scaled(ui->viewer->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
             resetSliders();
             return;
         }
@@ -168,21 +169,21 @@ void Image5DViewer::update(bool is_slider)
     ui->status->setText(QString("plane: %1 (s = %2, z = %3, c = %4, t = %5)").arg(plane).arg(s).arg(z).arg(c).arg(t));
 
     auto qimg = readPlaneToQimage(*reader, plane);
-    ui->viewer->setPixmap(
-        QPixmap::fromImage(qimg.scaled(ui->viewer->width(), ui->viewer->height(), Qt::KeepAspectRatio)));
+    curr_pixmap = QPixmap::fromImage(qimg);
+    ui->viewer->setPixmap(curr_pixmap.scaled(ui->viewer->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
 }
 
 void Image5DViewer::resetSliders()
 {
-    const QSignalBlocker bss(ui->slider_s);
-    const QSignalBlocker bsz(ui->slider_z);
-    const QSignalBlocker bsc(ui->slider_c);
-    const QSignalBlocker bst(ui->slider_t);
+    ui->slider_s->setEnabled(false);
+    ui->slider_z->setEnabled(false);
+    ui->slider_c->setEnabled(false);
+    ui->slider_t->setEnabled(false);
 
-    const QSignalBlocker bsbs(ui->s_sbox);
-    const QSignalBlocker bsbz(ui->z_sbox);
-    const QSignalBlocker bsbc(ui->c_sbox);
-    const QSignalBlocker bsbt(ui->t_sbox);
+    ui->s_sbox->setEnabled(false);
+    ui->z_sbox->setEnabled(false);
+    ui->c_sbox->setEnabled(false);
+    ui->t_sbox->setEnabled(false);
 
     ui->slider_s->setMaximum(0);
     ui->slider_z->setMaximum(0);
@@ -205,4 +206,10 @@ void Image5DViewer::resetSliders()
     ui->t_sbox->setValue(0);
 
     ui->status->setText("Plain Image");
+}
+
+void Image5DViewer::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event);
+    ui->viewer->setPixmap(curr_pixmap.scaled(ui->viewer->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
 }

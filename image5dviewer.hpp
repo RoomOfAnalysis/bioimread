@@ -16,6 +16,9 @@ public:
     explicit Image5DViewer(QWidget* parent = nullptr);
     ~Image5DViewer();
 
+protected:
+    void resizeEvent(QResizeEvent*);
+
 private:
     void openFile();
     void update(bool);
@@ -24,4 +27,5 @@ private:
 private:
     Ui::Image5DViewer* ui;
     Reader* reader = nullptr;
+    QPixmap curr_pixmap{};
 };
