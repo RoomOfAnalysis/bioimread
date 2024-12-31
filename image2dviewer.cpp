@@ -8,6 +8,8 @@
 #include <QScrollBar>
 #include <QApplication>
 #include <QClipBoard>
+#include <QMenu>
+#include <QFileDialog>
 
 class Image2DViewer::ImageWidget: public QWidget
 {
@@ -220,6 +222,15 @@ void Image2DViewer::flipV()
     resizeImage();
 }
 
+void Image2DViewer::saveImage()
+{
+    setCursorHiding(false);
+
+    QString path = QFileDialog::getSaveFileName(this, tr("Save image as"), QDir::homePath(),
+                                                tr("Images") + " (*.jpg *.jpeg *.png *.bmp *.tif *.webp)");
+    if (!path.isEmpty() && m_viewer_image.save(path)) emit imageSaved(path);
+}
+
 void Image2DViewer::copyImage()
 {
     QApplication::clipboard()->setImage(m_viewer_image);
@@ -316,7 +327,15 @@ void Image2DViewer::contextMenuEvent(QContextMenuEvent* event)
 {
     while (QApplication::overrideCursor())
         QApplication::restoreOverrideCursor();
-    // context_menu->exec(QCursor::pos());
+    if (!m_context_menu)
+    {
+        m_context_menu = new QMenu(tr("Context Menu"), this);
+        auto action = new QAction(tr("Save Image As"), this);
+        action->setIcon(QIcon(":/ImageTool/UI_Icons/save_as.png"));
+        connect(action, &QAction::triggered, this, &Image2DViewer::saveImage);
+        m_context_menu->addAction(action);
+    }
+    m_context_menu->exec(QCursor::pos());
 }
 
 void Image2DViewer::mouseDoubleClickEvent(QMouseEvent* event)

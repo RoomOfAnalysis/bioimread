@@ -19,6 +19,11 @@ public:
     void flipH();
     void flipV();
 
+    void saveImage();
+
+signals:
+    void imageSaved(QString);
+
 public slots:
     void monitorCursorState();
     void copyImage();
@@ -59,4 +64,5 @@ private:
     bool m_flipV = false;
     QImage m_orig_image;
     QImage m_viewer_image;
+    QMenu* m_context_menu = nullptr;
 };
