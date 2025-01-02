@@ -58,6 +58,8 @@ void Image5DViewer::openFile()
         format = "jxl";
     else if (mime_name == "image/bmp")
         format = "bmp";
+    else if (mime_name == "image/tiff")
+        format = "tiff";
     // handle plain image with qt
     if (!format.isEmpty())
     {
@@ -74,12 +76,17 @@ void Image5DViewer::openFile()
         //    }
         //}
         QImageReader qreader(filePath, format.toUtf8());
-        if (qreader.canRead())
+        // handle single page tiff with QImageReader instead of bioformats
+        if (qreader.canRead() && qreader.imageCount() == 1)
         {
             curr_img = qreader.read();
-            ui->viewer->loadImage(curr_img);
-            resetSliders();
-            return;
+            // in some case, QImageReader may fail to read, then let bioformats handle it
+            if (!curr_img.isNull())
+            {
+                ui->viewer->loadImage(curr_img);
+                resetSliders();
+                return;
+            }
         }
     }
 
