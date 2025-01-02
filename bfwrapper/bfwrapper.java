@@ -4,6 +4,7 @@ import java.io.IOException;
 // import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+// import java.util.Hashtable;
 // import java.nio.MappedByteBuffer;
 // import java.nio.channels.FileChannel;
 // import java.nio.channels.FileChannel.MapMode;
@@ -17,6 +18,7 @@ import loci.formats.IFormatReader;
 import loci.formats.ImageReader;
 import loci.formats.meta.IMetadata;
 import loci.formats.meta.MetadataRetrieve;
+import loci.formats.ome.OMEXMLMetadata;
 import loci.formats.services.OMEXMLService;
 import loci.formats.FormatException;
 import ome.units.UNITS;
@@ -107,9 +109,20 @@ public class bfwrapper implements Closeable {
 
     public String getOMEXML() {
         try {
-            String xml = service.getOMEXML((MetadataRetrieve) meta);
-            XMLTools.indentXML(xml, 3, true);
-            return xml;
+            // FIXME: seems have to use new reader to obtain XML, since XML always stays the
+            // same after `setID` to different file
+
+            // String xml = service.getOMEXML((MetadataRetrieve) meta);
+            // XMLTools.indentXML(xml, 3, true);
+            // return xml;
+            return ((OMEXMLMetadata) meta).dumpXML();
+
+            // the following will change after `setID` to different file
+
+            // System.out.println(service.getOriginalMetadata((OMEXMLMetadata) meta));
+            // return service.getOriginalMetadata((OMEXMLMetadata) meta).toString();
+            // return reader.getSeriesMetadata().toString();
+            // return reader.getGlobalMetadata().toString();
         } catch (Exception e) {
             e.printStackTrace();
             return "Error: " + e.getMessage();

@@ -1,13 +1,13 @@
 #include <QApplication>
 
-#include "image5dviewer.hpp"
+#include "viewer.hpp"
 
 int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);
 
-    Image5DViewer viewer;
-    viewer.show();
+    Viewer viewer;
+    viewer.showMaximized();
 
     return app.exec();
 }

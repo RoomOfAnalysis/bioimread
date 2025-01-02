@@ -16,6 +16,9 @@ public:
     explicit Image5DViewer(QWidget* parent = nullptr);
     ~Image5DViewer();
 
+signals:
+    void fileOpened(QString const& path, QString const& xml);
+
 private:
     void openFile();
     void update(bool);

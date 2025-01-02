@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Viewer</class>
+ <widget class="QWidget" name="Viewer">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>400</width>
+    <height>300</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>BioImread</string>
+  </property>
+  <layout class="QHBoxLayout" name="horizontalLayout" stretch="8,2">
+   <item>
+    <widget class="Image5DViewer" name="image5dviewer" native="true"/>
+   </item>
+   <item>
+    <widget class="FileInfoViewer" name="fileinfoviewer" native="true"/>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>Image5DViewer</class>
+   <extends>QWidget</extends>
+   <header location="global">image5dviewer.hpp</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>FileInfoViewer</class>
+   <extends>QWidget</extends>
+   <header location="global">fileinfoviewer.hpp</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

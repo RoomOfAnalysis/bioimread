@@ -24,12 +24,11 @@ Image5DViewer::Image5DViewer(QWidget* parent): QWidget(parent), ui(new Ui::Image
     connect(ui->z_sbox, &QSpinBox::valueChanged, [this](int) { update(false); });
     connect(ui->c_sbox, &QSpinBox::valueChanged, [this](int) { update(false); });
     connect(ui->t_sbox, &QSpinBox::valueChanged, [this](int) { update(false); });
-
-    reader = new Reader;
 }
 
 Image5DViewer::~Image5DViewer()
 {
+    delete ui;
     delete reader;
 }
 
@@ -39,7 +38,11 @@ void Image5DViewer::openFile()
     QString filePath = QFileDialog::getOpenFileName(this, tr("Open Image"), "", tr("*;;*.lsm;; *.czi;; *.ome.tiff"));
     if (filePath.isEmpty()) return;
 
-    reader->close();
+    if (reader) reader->close();
+
+    // FIXME: have to always use new reader to obtain current file's XML...
+    delete reader;
+    reader = new Reader;
 
     QString format;
     QMimeDatabase mime_db;
@@ -85,6 +88,9 @@ void Image5DViewer::openFile()
             {
                 ui->viewer->loadImage(curr_img);
                 resetSliders();
+
+                emit fileOpened(filePath, {});
+
                 return;
             }
         }
@@ -134,6 +140,8 @@ void Image5DViewer::openFile()
         ui->t_sbox->setValue(0);
 
         update(true);
+
+        emit fileOpened(filePath, QString::fromStdString(reader->getMetaXML()));
     }
 }
 

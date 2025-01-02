@@ -35,6 +35,8 @@ public:
 
     void setSeries(int no);
 
+    std::string getMetaXML() const;
+
     int getImageCount() const;
     int getSeriesCount() const;
     int getSeries() const;

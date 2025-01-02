@@ -32,6 +32,8 @@ struct Reader::impl
         std::vector<std::optional<std::array<int, 4>>> channel_colors{};
         int plane_size{};
 
+        std::string xml;
+
         void PrintSelf() const;
     };
     meta m_meta{};
@@ -40,6 +42,7 @@ struct Reader::impl
     void close();
     bool reopen();
     void setSeries(int no);
+    std::string getXML();
     int getImageCount();
     int getSeriesCount();
     int getSeries();
@@ -135,6 +138,11 @@ bool Reader::reopen()
 void Reader::setSeries(int no)
 {
     pimpl->setSeries(no);
+}
+
+std::string Reader::getMetaXML() const
+{
+    return pimpl->m_meta.xml;
 }
 
 int Reader::getImageCount() const
@@ -348,6 +356,25 @@ void Reader::impl::setSeries(int no)
     for (auto c = 0; c < m_meta.size_c; c++)
         m_meta.channel_colors[c] = getChannelColor(c);
     m_meta.plane_size = getPlaneSize();
+
+    m_meta.xml = getXML();
+}
+
+std::string Reader::impl::getXML()
+{
+    jstring xmldata = (jstring)jvm_env->CallObjectMethod(
+        wrapper_instance, jvm_env->GetMethodID(wrapper_cls, "getOMEXML", "()Ljava/lang/String;"));
+    if (xmldata != nullptr)
+    {
+        const char* xmldataChars = jvm_env->GetStringUTFChars(xmldata, nullptr);
+        std::string xml = std::string(xmldataChars);
+        jvm_env->ReleaseStringUTFChars(xmldata, xmldataChars);
+        return xml;
+    }
+    else
+        std::cerr << "Error retrieving xmldata" << std::endl;
+    jvm_env->DeleteLocalRef(xmldata);
+    return {};
 }
 
 int Reader::impl::getImageCount()
