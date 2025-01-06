@@ -108,28 +108,7 @@ void FileInfoViewer::setExtra(QString const& xml_str)
             // qDebug() << domElement.tagName();
             if (domElement.tagName() == "Instrument")
             {
-                QString intrument_str{};
-                QDomNode node = domElement.firstChild();
-                while (!node.isNull())
-                {
-                    QDomElement element = node.toElement();
-                    if (!element.isNull())
-                    {
-                        //qDebug() << "\t" << element.tagName() << element.text();
-                        if (element.hasAttributes())
-                        {
-                            intrument_str.append(element.tagName() + ":\n");
-                            QDomNamedNodeMap map = element.attributes();
-                            for (auto i = 0; i < map.length(); i++)
-                                if (!(map.item(i).isNull()))
-                                {
-                                    if (QDomAttr attr = map.item(i).toAttr(); !attr.isNull())
-                                        intrument_str.append(QString("\t%1 = %2\n").arg(attr.name()).arg(attr.value()));
-                                }
-                        }
-                    }
-                    node = node.nextSibling();
-                }
+                QString intrument_str = parse_node(domElement.firstChild());
                 m_instrument_strs.append(intrument_str);
             }
         }
@@ -141,11 +120,11 @@ void FileInfoViewer::setExtra(QString const& xml_str)
 
 void FileInfoViewer::setExtra(int series_no)
 {
-    if (m_xml_str.isEmpty()) return;
     if (m_series_no == series_no) return;
     m_series_no = series_no;
 
     m_extra->setText("");
+    if (m_xml_str.isEmpty()) return;
 
     // https://ome-model.readthedocs.io/en/stable/developers/model-overview.html
     QDomDocument doc("meta");
@@ -168,4 +147,36 @@ void FileInfoViewer::setExtra(int series_no)
         }
         domNode = domNode.nextSibling();
     }
+}
+
+QString FileInfoViewer::parse_node(QDomNode node, int indent)
+{
+    QString str{};
+    while (!node.isNull())
+    {
+        QDomElement element = node.toElement();
+        if (!element.isNull() && element.hasAttributes())
+        {
+            str.append(QString(indent, QChar::Space) + element.tagName() + ":\n");
+            QDomNamedNodeMap map = element.attributes();
+            for (auto i = 0; i < map.length(); i++)
+                if (!(map.item(i).isNull()))
+                {
+                    if (QDomAttr attr = map.item(i).toAttr(); !attr.isNull())
+                        str.append(QString("%1%2 = %3\n")
+                                       .arg(QString(indent + 2, QChar::Space))
+                                       .arg(attr.name())
+                                       .arg(attr.value()));
+                }
+        }
+        if (element.hasChildNodes())
+        {
+            auto childNodes = element.childNodes();
+            for (auto i = 0; i < childNodes.length(); i++)
+                str += parse_node(childNodes.at(i), indent + 4);
+        }
+
+        node = node.nextSibling();
+    }
+    return str;
 }

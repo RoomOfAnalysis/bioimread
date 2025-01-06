@@ -4,6 +4,7 @@
 #include <QLabel>
 #include <QDateTime>
 #include <QFileInfo>
+#include <QDomNode>
 
 class QTextBrowser;
 
@@ -33,6 +34,9 @@ public:
 
     void setExtra(QString const& xml_str);
     void setExtra(int series_no);
+
+private:
+    QString parse_node(QDomNode node, int indent = 0);
 
 private:
     QFileInfo m_fi{};
