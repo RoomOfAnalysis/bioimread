@@ -13,14 +13,20 @@ Image5DViewer::Image5DViewer(QWidget* parent): QWidget(parent), ui(new Ui::Image
 {
     ui->setupUi(this);
 
-    connect(ui->slider_s, &QSlider::valueChanged, [this](int) { update(true); });
+    connect(ui->slider_s, &QSlider::valueChanged, [this](int) {
+        update(true);
+        seriesChanged(ui->slider_s->value());
+    });
     connect(ui->slider_z, &QSlider::valueChanged, [this](int) { update(true); });
     connect(ui->slider_c, &QSlider::valueChanged, [this](int) { update(true); });
     connect(ui->slider_t, &QSlider::valueChanged, [this](int) { update(true); });
 
     connect(ui->btn, &QPushButton::pressed, [this] { openFile(); });
 
-    connect(ui->s_sbox, &QSpinBox::valueChanged, [this](int) { update(false); });
+    connect(ui->s_sbox, &QSpinBox::valueChanged, [this](int) {
+        update(false);
+        seriesChanged(ui->slider_s->value());
+    });
     connect(ui->z_sbox, &QSpinBox::valueChanged, [this](int) { update(false); });
     connect(ui->c_sbox, &QSpinBox::valueChanged, [this](int) { update(false); });
     connect(ui->t_sbox, &QSpinBox::valueChanged, [this](int) { update(false); });

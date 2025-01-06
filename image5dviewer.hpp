@@ -18,6 +18,7 @@ public:
 
 signals:
     void fileOpened(QString const& path, QString const& xml);
+    void seriesChanged(int series_no);
 
 private:
     void openFile();

@@ -32,6 +32,7 @@ public:
     QString getFileName() const;
 
     void setExtra(QString const& xml_str);
+    void setExtra(int series_no);
 
 private:
     QFileInfo m_fi{};
@@ -40,4 +41,8 @@ private:
     KVItem* m_size_item = nullptr;
     KVItem* m_lastmodified_item = nullptr;
     QTextBrowser* m_extra = nullptr;
+
+    QString m_xml_str{};
+    QList<QString> m_instrument_strs{};
+    int m_series_no = -1;
 };

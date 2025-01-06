@@ -7,6 +7,7 @@
 #include <QFileInfo>
 #include <QDebug>
 #include <QTextBrowser>
+#include <QDomDocument>
 
 KVItem::KVItem(QWidget* parent): QWidget(parent)
 {
@@ -89,6 +90,82 @@ QString FileInfoViewer::getFileName() const
 
 void FileInfoViewer::setExtra(QString const& xml_str)
 {
-    // TODO: parse XML into a pretty format
-    m_extra->setMarkdown(xml_str);
+    m_xml_str = xml_str;
+    m_series_no = -1;
+    m_instrument_strs.clear();
+
+    // https://ome-model.readthedocs.io/en/stable/developers/model-overview.html
+    QDomDocument doc("meta");
+    doc.setContent(m_xml_str);
+    QDomElement topElement = doc.documentElement();
+    QDomNode domNode = topElement.firstChild();
+    while (!domNode.isNull())
+    {
+        QDomElement domElement = domNode.toElement();
+        if (!domElement.isNull())
+        {
+            // Experimenter / Instrument / Image / StructuredAnnotations / ...
+            // qDebug() << domElement.tagName();
+            if (domElement.tagName() == "Instrument")
+            {
+                QString intrument_str{};
+                QDomNode node = domElement.firstChild();
+                while (!node.isNull())
+                {
+                    QDomElement element = node.toElement();
+                    if (!element.isNull())
+                    {
+                        //qDebug() << "\t" << element.tagName() << element.text();
+                        if (element.hasAttributes())
+                        {
+                            intrument_str.append(element.tagName() + ":\n");
+                            QDomNamedNodeMap map = element.attributes();
+                            for (auto i = 0; i < map.length(); i++)
+                                if (!(map.item(i).isNull()))
+                                {
+                                    if (QDomAttr attr = map.item(i).toAttr(); !attr.isNull())
+                                        intrument_str.append(QString("\t%1 = %2\n").arg(attr.name()).arg(attr.value()));
+                                }
+                        }
+                    }
+                    node = node.nextSibling();
+                }
+                m_instrument_strs.append(intrument_str);
+            }
+        }
+        domNode = domNode.nextSibling();
+    }
+
+    setExtra(0);
+}
+
+void FileInfoViewer::setExtra(int series_no)
+{
+    if (m_xml_str.isEmpty()) return;
+    if (m_series_no == series_no) return;
+    m_series_no = series_no;
+
+    m_extra->setText("");
+
+    // https://ome-model.readthedocs.io/en/stable/developers/model-overview.html
+    QDomDocument doc("meta");
+    doc.setContent(m_xml_str);
+    QDomElement topElement = doc.documentElement();
+    QDomNode domNode = topElement.firstChild();
+    while (!domNode.isNull())
+    {
+        QDomElement domElement = domNode.toElement();
+        if (!domElement.isNull())
+        {
+            if (domElement.tagName() == "Image" && domElement.attribute("ID") == QString("Image:%1").arg(m_series_no))
+            {
+                // <InstrumentRef ID="Instrument:0"/>
+                m_extra->setText(
+                    m_instrument_strs
+                        [domElement.namedItem("InstrumentRef").toElement().attribute("ID").split(":")[1].toInt()]);
+                break;
+            }
+        }
+        domNode = domNode.nextSibling();
+    }
 }
