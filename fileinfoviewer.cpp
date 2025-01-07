@@ -139,9 +139,13 @@ void FileInfoViewer::setExtra(int series_no)
             if (domElement.tagName() == "Image" && domElement.attribute("ID") == QString("Image:%1").arg(m_series_no))
             {
                 // <InstrumentRef ID="Instrument:0"/>
-                m_extra->setText(
-                    m_instrument_strs
-                        [domElement.namedItem("InstrumentRef").toElement().attribute("ID").split(":")[1].toInt()]);
+                if (auto id_sl = domElement.namedItem("InstrumentRef").toElement().attribute("ID").split(":");
+                    id_sl.size() > 1)
+                {
+                    bool ok = false;
+                    auto id = id_sl[1].toInt(&ok, 10);
+                    if (ok && (m_instrument_strs.size() > id)) m_extra->setText(m_instrument_strs[id]);
+                }
                 break;
             }
         }
