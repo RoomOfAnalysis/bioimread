@@ -17,7 +17,7 @@ public:
     ~Image5DViewer();
 
 signals:
-    void fileOpened(QString const& path, QString const& xml);
+    void fileOpened(QString const& path, QSize sz, int depth, QString const& xml);
     void seriesChanged(int series_no);
 
 private:

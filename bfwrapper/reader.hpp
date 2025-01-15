@@ -55,6 +55,7 @@ public:
     // s
     double getPhysSizeT() const;
     PixelType getPixelType() const;
+    int getBitsPerPixel() const;
     int getBytesPerPixel() const;
     int getRGBChannelCount() const;
     std::optional<std::array<int, 4>> getChannelColor(int channel) const;

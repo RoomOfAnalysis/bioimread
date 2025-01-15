@@ -95,7 +95,7 @@ void Image5DViewer::openFile()
                 ui->viewer->loadImage(curr_img);
                 resetSliders();
 
-                emit fileOpened(filePath, {});
+                emit fileOpened(filePath, curr_img.size(), curr_img.bitPlaneCount(), {});
 
                 return;
             }
@@ -147,7 +147,8 @@ void Image5DViewer::openFile()
 
         update(true);
 
-        emit fileOpened(filePath, QString::fromStdString(reader->getMetaXML()));
+        emit fileOpened(filePath, curr_img.size(), reader->getBitsPerPixel(),
+                        QString::fromStdString(reader->getMetaXML()));
     }
 }
 

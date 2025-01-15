@@ -46,6 +46,8 @@ FileInfoViewer::FileInfoViewer(QWidget* parent): QWidget(parent)
     m_size_item = new KVItem(this);
     m_isdir_item = new KVItem(this);
     m_lastmodified_item = new KVItem(this);
+    m_img_sz_item = new KVItem(this);
+    m_img_bd_item = new KVItem(this);
     m_extra = new QTextBrowser(this);
 
     auto* layout = new QVBoxLayout(this);
@@ -57,6 +59,8 @@ FileInfoViewer::FileInfoViewer(QWidget* parent): QWidget(parent)
     layout->addWidget(m_isdir_item);
     layout->addWidget(m_size_item);
     layout->addWidget(m_lastmodified_item);
+    layout->addWidget(m_img_sz_item);
+    layout->addWidget(m_img_bd_item);
     layout->addSpacerItem(new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Fixed));
     layout->addWidget(m_extra);
 }
@@ -151,6 +155,12 @@ void FileInfoViewer::setExtra(int series_no)
         }
         domNode = domNode.nextSibling();
     }
+}
+
+void FileInfoViewer::setImageInfo(QSize sz, int depth)
+{
+    m_img_sz_item->setKV("Image Size:", QString("%1 x %2").arg(sz.width()).arg(sz.height()));
+    m_img_bd_item->setKV("Image BitDepth:", QString::number(depth));
 }
 
 QString FileInfoViewer::parse_node(QDomNode node, int indent)

@@ -31,6 +31,7 @@ struct Reader::impl
         int rgb_channel_count{};
         std::vector<std::optional<std::array<int, 4>>> channel_colors{};
         int plane_size{};
+        int bits_per_pixel{};
 
         std::string xml;
 
@@ -69,6 +70,7 @@ struct Reader::impl
     std::unique_ptr<char[]> getPlane(int no);
     std::unique_ptr<std::vector<std::array<unsigned char, 3>>> get8BitLut();
     std::unique_ptr<std::vector<std::array<short, 3>>> get16BitLut();
+    int getBitsPerPixel();
 
     void force_gc();
 };
@@ -208,6 +210,11 @@ double Reader::getPhysSizeT() const
 Reader::PixelType Reader::getPixelType() const
 {
     return pimpl->m_meta.pixel_type;
+}
+
+int Reader::getBitsPerPixel() const
+{
+    return pimpl->m_meta.bits_per_pixel;
 }
 
 int Reader::getBytesPerPixel() const
@@ -356,6 +363,7 @@ void Reader::impl::setSeries(int no)
     for (auto c = 0; c < m_meta.size_c; c++)
         m_meta.channel_colors[c] = getChannelColor(c);
     m_meta.plane_size = getPlaneSize();
+    m_meta.bits_per_pixel = getBitsPerPixel();
 
     m_meta.xml = getXML();
 }
@@ -574,6 +582,11 @@ std::unique_ptr<std::vector<std::array<short, 3>>> Reader::impl::get16BitLut()
     }
     jvm_env->DeleteLocalRef(bytesArray);
     return lut;
+}
+
+int Reader::impl::getBitsPerPixel()
+{
+    return jvm_env->CallIntMethod(wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "getBitsPerPixel", "()I"));
 }
 
 void Reader::impl::force_gc()

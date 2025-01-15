@@ -35,6 +35,8 @@ public:
     void setExtra(QString const& xml_str);
     void setExtra(int series_no);
 
+    void setImageInfo(QSize sz, int depth);
+
 private:
     QString parse_node(QDomNode node, int indent = 0);
 
@@ -44,6 +46,8 @@ private:
     KVItem* m_isdir_item = nullptr;
     KVItem* m_size_item = nullptr;
     KVItem* m_lastmodified_item = nullptr;
+    KVItem* m_img_sz_item = nullptr;
+    KVItem* m_img_bd_item = nullptr;
     QTextBrowser* m_extra = nullptr;
 
     QString m_xml_str{};
