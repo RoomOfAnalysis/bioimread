@@ -282,6 +282,8 @@ void Image2DViewer::showEvent(QShowEvent* event)
 void Image2DViewer::mouseMoveEvent(QMouseEvent* event)
 {
     if (!m_image_widget) return;
+    // only accepts left button drag motion
+    if (!(event->buttons() & Qt::LeftButton)) return;
 
     if (m_move_image_locked)
     {
