@@ -124,7 +124,6 @@ QImage readPlaneToQimage(Reader const& reader, int plane_index)
     else if (rgbChannelCount == 3)
     {
         if (type == Reader::PixelType::UINT8)
-            // FIXME: bioformats read jpg into 3 * 3 subblocks...
             return QImage((uchar*)bytes, width, height, static_cast<qsizetype>(width) * bytesPerPixel * 3,
                           QImage::Format::Format_RGB888)
                 .copy();

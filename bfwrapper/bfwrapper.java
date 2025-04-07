@@ -1,3 +1,5 @@
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 // import java.io.File;
 import java.io.IOException;
@@ -395,10 +397,44 @@ public class bfwrapper implements Closeable {
     // https://github.com/scifio/scifio-itk-bridge/blob/master/src/main/java/io/scif/itk/SCIFIOITKBridge.java#L402
     public byte[] openPlane(int no) {
         final int bpp = FormatTools.getBytesPerPixel(reader.getPixelType());
-        return getBytes(DataTools.makeDataArray(openBytes(no), bpp, FormatTools
-                .isFloatingPoint(reader.getPixelType()),
-                reader
-                        .isLittleEndian()));
+        final int rgbChannelCount = reader.getRGBChannelCount();
+        if (rgbChannelCount == 1)
+            return getBytes(DataTools.makeDataArray(openBytes(no), bpp, FormatTools
+                    .isFloatingPoint(reader.getPixelType()),
+                    reader
+                            .isLittleEndian()));
+        final byte[] pixel = new byte[bpp];
+        final boolean isInterleaved = reader.isInterleaved();
+        final int xLen = reader.getSizeX();
+        final int yLen = reader.getSizeY();
+        byte[] image = openBytes(no);
+        final ByteArrayOutputStream out = new ByteArrayOutputStream(bpp * xLen * yLen * rgbChannelCount);
+        for (int y = 0; y < yLen; y++) {
+            for (int x = 0; x < xLen; x++) {
+                for (int i = 0; i < rgbChannelCount; i++) {
+                    for (int b = 0; b < bpp; b++) {
+                        int index = 0;
+                        if (isInterleaved) {
+                            index = ((y * xLen + x) * rgbChannelCount + i) * bpp + b;
+                        } else {
+                            index = ((i * yLen + y) * xLen + x) * bpp + b;
+                        }
+                        pixel[b] = image[index];
+                    }
+                    try {
+                        out.write(getBytes(DataTools.makeDataArray(pixel, bpp, FormatTools
+                                .isFloatingPoint(reader.getPixelType()),
+                                reader
+                                        .isLittleEndian())));
+                        out.flush();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        return null;
+                    }
+                }
+            }
+        }
+        return out.toByteArray();
     }
 
     public void openPlane(int no, ByteBuffer buffer) {
