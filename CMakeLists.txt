@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.16)
 
 if(WIN32)
     set(CMAKE_TOOLCHAIN_FILE "D:/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE INTERNAL "" FORCE)
@@ -31,7 +31,7 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
 endif()
 
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets Xml)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets Gui Xml)
 
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
@@ -70,6 +70,7 @@ target_include_directories(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
     PRIVATE Qt6::Core
     PRIVATE Qt6::Widgets
+    PRIVATE Qt6::Gui
     PRIVATE Qt6::Xml
     #PRIVATE ${JNI_LIBRARIES} # no need to link, jvm.dll should be in ENV path
     PRIVATE reader

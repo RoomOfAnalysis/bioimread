@@ -2,7 +2,6 @@
 #include "ui_image5dviewer.h"
 
 #include <QFileDialog>
-#include <QMimeDatabase>
 #include <QImageReader>
 #include <QMovie>
 
@@ -38,7 +37,6 @@ Image5DViewer::~Image5DViewer()
     delete reader;
 }
 
-// TODO: support gif in image2dviewer
 void Image5DViewer::openFile()
 {
     QString filePath = QFileDialog::getOpenFileName(this, tr("Open Image"), "", tr("*;;*.lsm;; *.czi;; *.ome.tiff"));
@@ -50,45 +48,30 @@ void Image5DViewer::openFile()
     delete reader;
     reader = new Reader;
 
-    QString format;
-    QMimeDatabase mime_db;
-    auto mime_type = mime_db.mimeTypeForFile(filePath, QMimeDatabase::MatchContent);
-    auto mime_name = mime_type.name().toUtf8();
-    if (mime_name == "image/jpeg")
-        format = "jpg";
-    else if (mime_name == "image/png")
-        format = "png";
-    //else if (mime_name == "image/gif")
-    //    format = "gif";
-    else if (mime_name == "image/webp" ||
-             (mime_name == "audio/x-riff" && QFileInfo(filePath).suffix().toLower().toUtf8() == "webp"))
-        format = "webp";
-    else if (mime_name == "image/jxl")
-        format = "jxl";
-    else if (mime_name == "image/bmp")
-        format = "bmp";
-    else if (mime_name == "image/tiff")
-        format = "tiff";
     // handle plain image with qt
-    if (!format.isEmpty())
+    // TODO: mime type seems more reliable than file extension
+    if (auto format = filePath.split(".").last().toLower(); QImageReader::supportedImageFormats().contains(format))
     {
-        //if (format == "gif")
-        //{
-        //    QMovie* movie = new QMovie(filePath);
-        //    if (movie->isValid())
-        //    {
-        //        movie->setScaledSize(ui->viewer->size());
-        //        ui->viewer->setMovie(movie);
-        //        movie->start();
-        //        resetSliders();
-        //        return;
-        //    }
-        //}
-        QImageReader qreader(filePath, format.toUtf8());
+        QImageReader qreader(filePath);
+        auto canRead = qreader.canRead();
+        // handle gif with QImageReader since bioformats read gif out of shape...
         // handle single page tiff with QImageReader instead of bioformats
-        if (qreader.canRead() && qreader.imageCount() == 1)
+        if (format != "gif") canRead &= (qreader.imageCount() == 1);
+        if (canRead)
         {
-            curr_img = qreader.read();
+            if (format == "gif")
+            {
+                if (QMovie movie = QMovie(filePath); movie.isValid())
+                {
+                    movie.setScaledSize(ui->viewer->size());
+                    movie.start();
+                    movie.jumpToFrame(movie.frameCount() / 2);
+                    curr_img = movie.currentImage();
+                }
+                // TODO: set timepoint with `ui->slider_t`
+            }
+            else
+                curr_img = qreader.read();
             // in some case, QImageReader may fail to read, then let bioformats handle it
             if (!curr_img.isNull())
             {
