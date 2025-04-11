@@ -39,6 +39,7 @@ struct Reader::impl
     };
     meta m_meta{};
 
+    void setFlattenedResolutions(bool flag);
     bool open(std::string filePath);
     void close();
     bool reopen();
@@ -71,6 +72,13 @@ struct Reader::impl
     std::unique_ptr<std::vector<std::array<unsigned char, 3>>> get8BitLut();
     std::unique_ptr<std::vector<std::array<short, 3>>> get16BitLut();
     int getBitsPerPixel();
+
+    int getOptimalTileWidth() const;
+    int getOptimalTileHeight() const;
+    std::unique_ptr<char[]> getTile(int no, int x, int y, int w, int h) const;
+
+    int getResolutionCount() const;
+    void setResolution(int level);
 
     void force_gc();
 };
@@ -118,6 +126,11 @@ Reader::~Reader()
         pimpl->system_cls = nullptr;
     }
     pimpl = nullptr;
+}
+
+void Reader::setFlattenedResolutions(bool flag)
+{
+    pimpl->setFlattenedResolutions(flag);
 }
 
 bool Reader::open(std::string filePath)
@@ -262,6 +275,31 @@ std::unique_ptr<std::vector<std::array<short, 3>>> Reader::get16BitLut() const
     return pimpl->get16BitLut();
 }
 
+int Reader::getOptimalTileWidth() const
+{
+    return pimpl->getOptimalTileWidth();
+}
+
+int Reader::getOptimalTileHeight() const
+{
+    return pimpl->getOptimalTileHeight();
+}
+
+std::unique_ptr<char[]> Reader::getTile(int no, int x, int y, int w, int h) const
+{
+    return pimpl->getTile(no, x, y, w, h);
+}
+
+int Reader::getResolutionCount() const
+{
+    return pimpl->getResolutionCount();
+}
+
+void Reader::setResolution(int level)
+{
+    pimpl->setResolution(level);
+}
+
 std::string Reader::pixelTypeStr(PixelType pt)
 {
     static std::string typeStr[9]{"int8", "uint8", "int16", "uint16", "int32", "uint32", "float", "double", "bit"};
@@ -306,6 +344,12 @@ void Reader::impl::meta::PrintSelf() const
               << "\nphysical_size_y: " << physical_size_y << "\nphysical_size_z: " << physical_size_z
               << "\nphysical_size_t: " << physical_size_t << "\npixel_type: " << pixelTypeStr(pixel_type)
               << "\nrgb_channel_count: " << rgb_channel_count << "\nplane_size: " << plane_size << "\n";
+}
+
+void Reader::impl::setFlattenedResolutions(bool flag)
+{
+    jvm_env->CallVoidMethod(wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "setFlattenedResolutions", "(Z)V"),
+                            flag);
 }
 
 bool Reader::impl::open(std::string filePath)
@@ -589,6 +633,60 @@ int Reader::impl::getBitsPerPixel()
     return jvm_env->CallIntMethod(wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "getBitsPerPixel", "()I"));
 }
 
+int Reader::impl::getOptimalTileWidth() const
+{
+    return jvm_env->CallIntMethod(wrapper_instance,
+                                  jvm_wrapper->getMethodID(wrapper_cls, "getOptimalTileWidth", "()I"));
+}
+
+int Reader::impl::getOptimalTileHeight() const
+{
+    return jvm_env->CallIntMethod(wrapper_instance,
+                                  jvm_wrapper->getMethodID(wrapper_cls, "getOptimalTileHeight", "()I"));
+}
+
+std::unique_ptr<char[]> Reader::impl::getTile(int no, int x, int y, int w, int h) const
+{
+    jbyteArray byteArray = (jbyteArray)jvm_env->CallObjectMethod(
+        wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "openBytes", "(IIIII)[B"), no, x, y, w, h);
+
+    assert(byteArray != nullptr);
+
+    jsize len = jvm_env->GetArrayLength(byteArray);
+    auto bytes = std::make_unique<char[]>(sizeof(jbyte) * len);
+    jvm_env->GetByteArrayRegion(byteArray, 0, len, (jbyte*)bytes.get());
+    jvm_env->DeleteLocalRef(byteArray);
+
+    return bytes;
+}
+
+int Reader::impl::getResolutionCount() const
+{
+    return jvm_env->CallIntMethod(wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "getResolutionCount", "()I"));
+}
+void Reader::impl::setResolution(int level)
+{
+    jvm_env->CallVoidMethod(wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "setResolution", "(I)V"), level);
+
+    // update meta
+    m_meta.image_count = getImageCount();
+    m_meta.size_x = getSizeX();
+    m_meta.size_y = getSizeY();
+    m_meta.size_z = getSizeZ();
+    m_meta.size_t = getSizeT();
+    m_meta.size_c = getSizeC();
+    m_meta.physical_size_x = getPhysSizeX();
+    m_meta.physical_size_y = getPhysSizeY();
+    m_meta.physical_size_z = getPhysSizeZ();
+    m_meta.physical_size_t = getPhysSizeT();
+    m_meta.pixel_type = getPixelType();
+    m_meta.rgb_channel_count = getRGBChannelCount();
+    m_meta.channel_colors.resize(m_meta.size_c);
+    for (auto c = 0; c < m_meta.size_c; c++)
+        m_meta.channel_colors[c] = getChannelColor(c);
+    m_meta.plane_size = getPlaneSize();
+    m_meta.bits_per_pixel = getBitsPerPixel();
+}
 void Reader::impl::force_gc()
 {
     jvm_env->CallStaticVoidMethod(system_cls, jvm_env->GetStaticMethodID(system_cls, "gc", "()V"));

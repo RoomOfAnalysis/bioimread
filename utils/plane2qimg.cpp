@@ -64,15 +64,11 @@ template <typename T> QImage toIndexed8(char* bytes, int width, int height, QLis
     return img;
 }
 
-QImage readPlaneToQimage(Reader const& reader, int plane_index)
+QImage bytesToQImage(Reader const& reader, char* const bytes, int width, int height)
 {
-    auto width = reader.getSizeX();
-    auto height = reader.getSizeY();
     auto bytesPerPixel = reader.getBytesPerPixel();
     auto type = reader.getPixelType();
     auto rgbChannelCount = reader.getRGBChannelCount();
-    auto plane = reader.getPlane(plane_index);
-    auto bytes = plane.get();
     auto lut8 = reader.get8BitLut();
 
     //auto lut16 = reader.get16BitLut();
@@ -129,8 +125,7 @@ QImage readPlaneToQimage(Reader const& reader, int plane_index)
                 .copy();
         else
         {
-            qCritical() << "readPlaneToQimage: unsupported pixel type:" << Reader::pixelTypeStr(type)
-                        << "for 3 channels";
+            qCritical() << "bytesToQImage: unsupported pixel type:" << Reader::pixelTypeStr(type) << "for 3 channels";
             return QImage();
         }
     }
@@ -153,14 +148,31 @@ QImage readPlaneToQimage(Reader const& reader, int plane_index)
                           QImage::Format::Format_RGBA32FPx4)
                 .copy();
         default:
-            qCritical() << "readPlaneToQimage: unsupported pixel type:" << Reader::pixelTypeStr(type)
-                        << "for 4 channels";
+            qCritical() << "bytesToQImage: unsupported pixel type:" << Reader::pixelTypeStr(type) << "for 4 channels";
             return QImage();
         }
     }
     else
     {
-        qCritical() << "readPlaneToQimage: unsupported rgb channels count:" << rgbChannelCount;
+        qCritical() << "bytesToQImage: unsupported rgb channels count:" << rgbChannelCount;
         return QImage();
     }
+}
+
+QImage readPlaneToQimage(Reader const& reader, int plane_index)
+{
+    auto width = reader.getSizeX();
+    auto height = reader.getSizeY();
+    auto plane = reader.getPlane(plane_index);
+    auto bytes = plane.get();
+    return bytesToQImage(reader, bytes, width, height);
+}
+
+QImage readPlaneTileToQimage(Reader const& reader, int plane_index, int x, int y)
+{
+    auto width = reader.getOptimalTileWidth();
+    auto height = reader.getOptimalTileHeight();
+    auto tile = reader.getTile(plane_index, x, y, width, height);
+    auto bytes = tile.get();
+    return bytesToQImage(reader, bytes, width, height);
 }

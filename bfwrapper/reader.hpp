@@ -29,6 +29,7 @@ public:
     Reader();
     ~Reader();
 
+    void setFlattenedResolutions(bool flag);
     bool open(std::string filePath);
     void close();
     bool reopen();
@@ -66,6 +67,15 @@ public:
     std::unique_ptr<char[]> getPlane(int no) const;
     std::unique_ptr<std::vector<std::array<unsigned char, 3>>> get8BitLut() const;
     std::unique_ptr<std::vector<std::array<short, 3>>> get16BitLut() const;
+
+    int getOptimalTileWidth() const;
+    int getOptimalTileHeight() const;
+    std::unique_ptr<char[]> getTile(int no, int x, int y, int w, int h) const;
+
+    // only available after `setFlattenedResolutions`
+    int getResolutionCount() const;
+    // only available after `setFlattenedResolutions`
+    void setResolution(int level);
 
 private:
     struct impl;

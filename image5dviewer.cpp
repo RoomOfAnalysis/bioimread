@@ -85,6 +85,8 @@ void Image5DViewer::openFile()
         }
     }
 
+    // https://docs.openmicroscopy.org/bio-formats/6.9.0/developers/wsi.html
+    reader->setFlattenedResolutions(false);
     auto succeed = reader->open(filePath.toStdString());
     ui->slider_s->setEnabled(succeed);
     ui->slider_z->setEnabled(succeed);
@@ -177,7 +179,28 @@ void Image5DViewer::update(bool is_slider)
     auto plane = reader->getPlaneIndex(z, c, t);
     ui->status->setText(QString("plane: %1 (s = %2, z = %3, c = %4, t = %5)").arg(plane).arg(s).arg(z).arg(c).arg(t));
 
-    curr_img = readPlaneToQimage(*reader, plane);
+    auto x_size = reader->getSizeX();
+    auto y_size = reader->getSizeY();
+    if (auto size = (long long)x_size * y_size * (reader->getRGBChannelCount()) * (reader->getBytesPerPixel());
+        size < 0 || size > 2147483647) // 2GB
+    {
+        // TODO: read higher resolution in tiles
+        //auto tile_x_size = reader->getOptimalTileWidth();
+        //auto tile_y_size = reader->getOptimalTileHeight();
+        //auto tiles_x = x_size / tile_x_size / 2;
+        //auto tiles_y = y_size / tile_y_size / 2;
+        //qDebug() << "image size(" << x_size << "," << y_size << ") is too large, load tile size(" << tile_x_size << ","
+        //         << tile_y_size << ")"
+        //         << "at [" << tiles_x << "," << tiles_y << "] instead ";
+        //curr_img = readPlaneTileToQimage(*reader, plane, tiles_x, tiles_y);
+
+        auto levels = reader->getResolutionCount();
+        reader->setResolution(levels - 1); // set to the lowest resolution
+        qDebug() << "levels:" << levels << ", size:" << reader->getSizeX() << reader->getSizeY();
+        curr_img = readPlaneToQimage(*reader, plane);
+    }
+    else
+        curr_img = readPlaneToQimage(*reader, plane);
     ui->viewer->loadImage(curr_img);
 }
 

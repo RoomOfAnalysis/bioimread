@@ -76,6 +76,11 @@ public class bfwrapper implements Closeable {
         DebugTools.setRootLevel(level);
     }
 
+    // https://bio-formats.readthedocs.io/en/v8.0.0/developers/wsi.html
+    public void setFlattenedResolutions(boolean flag) {
+        reader.setFlattenedResolutions(flag);
+    }
+
     public boolean setId(String filePath) {
         if (!reader.isThisType(filePath))
             return false;
@@ -522,6 +527,16 @@ public class bfwrapper implements Closeable {
             e.printStackTrace();
             return null;
         }
+    }
+
+    // only available after `setFlattenedResolutions`
+    public int getResolutionCount() {
+        return reader.getResolutionCount();
+    }
+
+    // only available after `setFlattenedResolutions`
+    public void setResolution(int level) {
+        reader.setResolution(level);
     }
 
     private byte[] getBytes(final Object data) {
