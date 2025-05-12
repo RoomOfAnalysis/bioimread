@@ -15,6 +15,7 @@ import loci.common.DataTools;
 import loci.common.DebugTools;
 import loci.common.services.ServiceFactory;
 import loci.common.xml.XMLTools;
+import loci.formats.ChannelFiller;
 import loci.formats.FormatTools;
 import loci.formats.IFormatReader;
 import loci.formats.ImageReader;
@@ -36,7 +37,10 @@ public class bfwrapper implements Closeable {
     public bfwrapper() {
         try {
             DebugTools.setRootLevel("ERROR");
-            reader = new ImageReader();
+            // [ChannelFiller](https://github.com/ome/bioformats/blob/develop/components/formats-bsd/src/loci/formats/ChannelFiller.java)
+            // [ChannelMerger](https://github.com/ome/bioformats/blob/develop/components/formats-bsd/src/loci/formats/ChannelMerger.java)
+            // [ChannelSeparator](https://github.com/ome/bioformats/blob/develop/components/formats-bsd/src/loci/formats/ChannelSeparator.java)
+            reader = new ChannelFiller(new ImageReader());
             reader.setMetadataFiltered(true);
             reader.setOriginalMetadataPopulated(true);
             reader.setGroupFiles(false);
