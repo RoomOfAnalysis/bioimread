@@ -45,6 +45,7 @@ endif()
 find_package(JNI REQUIRED)
 
 add_subdirectory(bfwrapper)
+add_subdirectory(qpwrapper)
 add_subdirectory(series_reader)
 add_subdirectory(volume_viewer)
 

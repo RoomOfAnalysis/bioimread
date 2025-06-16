@@ -321,7 +321,7 @@ int main(int argc, char* argv[])
                     for (jint c = 0; c < sizeC; c++)
                     {
                         jint plane = (jint)env->CallIntMethod(wrapper_instance, getPlaneIndexMethod, z, c, t);
-                        //std::cout << "z: " << z << ", c: " << c << ", t: " << t << ", plane: " << plane << std::endl;
+                    //std::cout << "z: " << z << ", c: " << c << ", t: " << t << ", plane: " << plane << std::endl;
 
 #ifdef BENCH_DBB
                         env->CallVoidMethod(wrapper_instance, openPlaneWithBufferMethod, plane, dbb);
@@ -332,9 +332,9 @@ int main(int argc, char* argv[])
                         if (byteArray != nullptr)
                         {
                             jsize len = env->GetArrayLength(byteArray);
-                            // according to https://rocksdb.org/blog/2023/11/06/java-jni-benchmarks.html
-                            // and https://developer.android.com/training/articles/perf-jni#region-calls
-                            // `GetByteArrayRegion` has similar performance with `GetPrimitiveArrayCritical` but with less restriction
+                        // according to https://rocksdb.org/blog/2023/11/06/java-jni-benchmarks.html
+                        // and https://developer.android.com/training/articles/perf-jni#region-calls
+                        // `GetByteArrayRegion` has similar performance with `GetPrimitiveArrayCritical` but with less restriction
 #ifdef BENCH_ARR
                             // 5.00s for 2.54GB data
                             jbyte* body = env->GetByteArrayElements(byteArray, nullptr);
