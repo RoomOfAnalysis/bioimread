@@ -1,48 +1,39 @@
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.sql.Time;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import java.util.stream.Collectors;
 
-import javax.imageio.ImageReader;
+import javax.imageio.ImageIO;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import ij.ImagePlus;
-import loci.common.DebugTools;
-import loci.common.Region;
-import loci.plugins.BF;
-import loci.plugins.in.ImporterOptions;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.bioformats.BioFormatsServerBuilder;
 import qupath.lib.images.servers.bioformats.BioFormatsImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServers;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
-import qupath.lib.images.servers.PixelType;
-import qupath.lib.projects.Project;
-import qupath.lib.projects.ProjectIO;
-import qupath.lib.projects.ProjectImageEntry;
-import qupath.lib.regions.RegionRequest;
+import qupath.lib.images.servers.TileRequest;
+import qupath.lib.regions.ImageRegion;
 
 public class qpwrapper implements AutoCloseable {
     private BioFormatsServerBuilder builder;
     private ImageServer<BufferedImage> server; // https://github.com/qupath/qupath/blob/main/qupath-core/src/main/java/qupath/lib/images/servers/ImageServer.java
+    private ImageServerMetadata meta;
+    private PixelCalibration pixcal;
 
     public qpwrapper(String path) {
         try {
             builder = new BioFormatsServerBuilder();
             server = builder.buildServer(Paths.get(path).toUri());
+            meta = server.getMetadata();
+            pixcal = server.getPixelCalibration();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -55,9 +46,61 @@ public class qpwrapper implements AutoCloseable {
 
     // https://github.com/qupath/qupath/blob/main/qupath-core/src/main/java/qupath/lib/images/servers/ImageServerMetadata.java#L822
     public String getMetadata() {
+        try {
+            return String.format(
+                    "%s: %d x %d (c=%d, z=%d, t=%d), bpp=%s, mag=%.2f, downsamples=[%s], res=[%.4f,%.4f,%.4f]",
+                    server.getPath(), server.getWidth(), server.getHeight(),
+                    server.nChannels(), server.nZSlices(), server.nTimepoints(),
+                    server.getPixelType().toString(), meta.getMagnification(),
+                    GeneralTools.arrayToString(Locale.getDefault(Locale.Category.FORMAT),
+                            server.getPreferredDownsamples(),
+                            4),
+                    pixcal.getPixelWidthMicrons(), pixcal.getPixelHeightMicrons(), pixcal.getZSpacingMicrons());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         return server.getMetadata().toString();
     }
 
+    public String getPath() {
+        return server.getPath();
+    }
+
+    /**
+     * Get the highest magnification value, or Double.NaN if this is unavailable.
+     * 
+     * @return
+     */
+    public double getMagnification() {
+        return meta.getMagnification();
+    }
+
+    /**
+     * Get the preferred tile width, which can be used to optimize pixel requests
+     * for large images.
+     * 
+     * @return
+     */
+    public int getPreferredTileWidth() {
+        return meta.getPreferredTileWidth();
+    }
+
+    /**
+     * Get the preferred tile height, which can be used to optimize pixel requests
+     * for large images.
+     * 
+     * @return
+     */
+    public int getPreferredTileHeight() {
+        return meta.getPreferredTileHeight();
+    }
+
+    /**
+     * True if the image has 8-bit red, green &amp; blue channels (and nothing
+     * else), false otherwise.
+     * 
+     * @return
+     */
     public boolean isRGB() {
         return server.isRGB();
     }
@@ -89,22 +132,22 @@ public class qpwrapper implements AutoCloseable {
 
     // mm
     public double getPhysSizeX() {
-        return server.getPixelCalibration().getPixelWidthMicrons() * 1000.0 * server.getWidth();
+        return pixcal.getPixelWidthMicrons() * 1000.0 * server.getWidth();
     }
 
     // mm
     public double getPhysSizeY() {
-        return server.getPixelCalibration().getPixelHeightMicrons() * 1000.0 * server.getHeight();
+        return pixcal.getPixelHeightMicrons() * 1000.0 * server.getHeight();
     }
 
     // mm
     public double getPhysSizeZ() {
-        return server.getPixelCalibration().getZSpacingMicrons() * 1000.0 * server.nZSlices();
+        return pixcal.getZSpacingMicrons() * 1000.0 * server.nZSlices();
     }
 
     // s
     public double getPhysSizeT() {
-        return server.getPixelCalibration().getTimeUnit().toSeconds(1) * server.nTimepoints();
+        return pixcal.getTimeUnit().toSeconds(1) * server.nTimepoints();
     }
 
     /**
@@ -126,7 +169,7 @@ public class qpwrapper implements AutoCloseable {
      * @see https://github.com/qupath/qupath/blob/main/qupath-core/src/main/java/qupath/lib/images/servers/PixelType.java#L82
      */
     public int getBitsPerPixel() {
-        return server.getMetadata().getPixelType().getBitsPerPixel();
+        return meta.getPixelType().getBitsPerPixel();
     }
 
     /**
@@ -137,7 +180,7 @@ public class qpwrapper implements AutoCloseable {
      * @see https://github.com/qupath/qupath/blob/main/qupath-core/src/main/java/qupath/lib/images/servers/PixelType.java#L108
      */
     public int getBytesPerPixel() {
-        return server.getMetadata().getPixelType().getBytesPerPixel();
+        return meta.getPixelType().getBytesPerPixel();
     }
 
     /**
@@ -152,16 +195,62 @@ public class qpwrapper implements AutoCloseable {
         return server.getChannel(channel).getColor().intValue();
     }
 
-    public List<String> getAssociatedImageList() {
-        return server.getAssociatedImageList();
+    /**
+     * Get a list of 'associated images', e.g. thumbnails or slide overview images.
+     * <p>
+     * Each associated image is simply a T that does not warrant (or require) a full
+     * ImageServer, and most likely would never be analyzed.
+     * 
+     * @see #getAssociatedImage(String)
+     * 
+     * @return
+     */
+    public String[] getAssociatedImageNames() {
+        return server.getAssociatedImageList().toArray(new String[0]);
     }
 
-    public BufferedImage getAssociatedImage(String name) {
-        return server.getAssociatedImage(name);
+    // width, height
+    public int[] getAssociatedImageSize(String name) {
+        BufferedImage image = server.getAssociatedImage(name);
+        if (image == null)
+            return null;
+        return new int[] { image.getWidth(), image.getHeight() };
     }
 
-    public BufferedImage getDefaultThumbnail(int z, int t) throws IOException {
-        return server.getDefaultThumbnail(z, t);
+    /**
+     * Get the image for a given associated image name.
+     * 
+     * @see #getAssociatedImageList()
+     * 
+     * @param name
+     * @return PNG byte array
+     */
+    public byte[] getAssociatedImage(String name) {
+        return bufferedImageToPNGBytes(server.getAssociatedImage(name));
+    }
+
+    /**
+     * Get the default thumbnail for a specified z-slice and timepoint.
+     * <p>
+     * This should be the lowest resolution image that is available in the case of
+     * the multiresolution
+     * image, or else the full image. For large datasets, it may be used to
+     * determine basic statistics or
+     * histograms without requiring every pixel to be visited in the full resolution
+     * image.
+     * 
+     * @param z
+     * @param t
+     * @return PNG byte array
+     */
+    public byte[] getDefaultThumbnail(int z, int t) {
+        try {
+            BufferedImage image = server.getDefaultThumbnail(z, t);
+            return bufferedImageToPNGBytes(image);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     /**
@@ -197,6 +286,20 @@ public class qpwrapper implements AutoCloseable {
     }
 
     /**
+     * Get the image size for a specified resolution level, where level 0 is
+     * the full resolution image
+     * and nResolutions() - 1 is the lowest resolution available.
+     * 
+     * @param level Resolution level, should be 0 &lt;= level &lt; nResolutions().
+     * @return [wdith, height]
+     */
+    public int[] getSizeForResolution(int level) {
+        // https://github.com/qupath/qupath/blob/main/qupath-core/src/main/java/qupath/lib/images/servers/ImageServerMetadata.java#L940
+        ImageServerMetadata.ImageResolutionLevel irl = meta.getLevel(level);
+        return new int[] { irl.getWidth(), irl.getHeight() };
+    }
+
+    /**
      * Read a 2D(+C) image region for a specified z-plane and timepoint.
      * Coordinates and bounding box dimensions are in pixel units, at the full image
      * resolution
@@ -211,12 +314,97 @@ public class qpwrapper implements AutoCloseable {
      * @param height     bounding box height
      * @param z          index for the z-position
      * @param t          index for the timepoint
-     * @return pixels for the region being requested
-     * @throws IOException
-     * @see #readRegion(RegionRequest)
+     * @return PNG byte array for the region being requested
+     * @see https://github.com/qupath/qupath/blob/v0.5.1/qupath-core/src/main/java/qupath/lib/images/servers/AbstractTileableImageServer.java#L266
+     * @implNote the newly added jars are for this method to work
      */
-    public BufferedImage readRegion(double downsample, int x, int y, int width, int height, int z, int t)
-            throws IOException {
-        return server.readRegion(downsample, x, y, width, height, z, t);
+    public byte[] readRegion(double downsample, int x, int y, int width, int height, int z, int t) {
+        // System.out.println(
+        // String.format("readRegion: [downsample: %.4f, x: %d, y: %d, width: %d,
+        // height: %d, z: %d, t: %d]",
+        // downsample, x, y, width, height, z, t));
+        try {
+            BufferedImage image = server.readRegion(downsample, x, y, width, height, z,
+                    t);
+            return bufferedImageToPNGBytes(image);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    /**
+     * Read a 2D(+C) image region for a specified z-plane and timepoint.
+     * Coordinates and bounding box dimensions are in pixel units, at the full image
+     * resolution
+     * (i.e. when downsample = 1).
+     * <p>
+     * All channels are always returned.
+     * 
+     * @param level  Resolution level, should be 0 &lt;= level &lt; nResolutions()
+     * @param x      x coordinate of the top left of the region bounding box
+     * @param y      y coordinate of the top left of the region bounding box
+     * @param width  bounding box width
+     * @param height bounding box height
+     * @param z      index for the z-position
+     * @param t      index for the timepoint
+     * @return PNG byte array for the region being requested
+     * @see #readRegion(double, int, int, int, int, int, int)
+     */
+    public byte[] readRegion(int level, int x, int y, int width, int height, int z, int t) {
+        return readRegion(getDownsampleForResolution(level), x, y, width, height, z, t);
+    }
+
+    /**
+     * Get a tile for the request - ideally from the cache, but otherwise read it
+     * and
+     * then add it to the cache.
+     * 
+     * @param level  resolution level for the region
+     * @param x      x coordinate of the top left of the region bounding box
+     * @param y      y coordinate of the top left of the region bounding box
+     * @param width  bounding box width
+     * @param height bounding box height
+     * @param z      index for the z-position
+     * @param t      index for the timepoint
+     * @return
+     * @apiNote better not use this method, since it breaks `ImageServer<T>`
+     *          interface, use `readRegion` instead
+     */
+    public byte[] getTile(int level, int x, int y, int width, int height, int z, int t) {
+        // System.out.println(
+        // String.format("getTile: [level: %d, x: %d, y: %d, width: %d, height: %d, z:
+        // %d, t: %d]",
+        // level, x, y, width, height, z, t));
+        try {
+            BufferedImage image = ((BioFormatsImageServer) server).readTile(TileRequest.createInstance(server, level,
+                    ImageRegion.createInstance(
+                            x, y, width, height, z, t)));
+            return bufferedImageToPNGBytes(image);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    // seems like server's `readRegion` always returns RGB image, maybe no need to
+    // convert to PNG, but how about `isRGB`?
+    // https://github.com/qupath/qupath/blob/v0.5.1/qupath-core/src/main/java/qupath/lib/images/servers/AbstractTileableImageServer.java#L266
+    private static byte[] bufferedImageToPNGBytes(BufferedImage image) {
+        if (image == null)
+            return null;
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try {
+            BufferedImage buffer = new BufferedImage(image.getWidth(null),
+                    image.getHeight(null), BufferedImage.TYPE_INT_ARGB);
+
+            buffer.createGraphics().drawImage(image, 0, 0, null);
+            ImageIO.write(buffer, "PNG", baos);
+            baos.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return baos.toByteArray();
     }
 }
