@@ -13,6 +13,7 @@ import java.util.Locale;
 import javax.imageio.ImageIO;
 
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.bioformats.BioFormatsServerBuilder;
 import qupath.lib.images.servers.bioformats.BioFormatsImageServer;
 import qupath.lib.images.servers.ImageServer;
@@ -60,6 +61,11 @@ public class qpwrapper implements AutoCloseable {
             e.printStackTrace();
         }
         return server.getMetadata().toString();
+    }
+
+    // https://github.com/qupath/qupath/blob/main/qupath-extension-bioformats/src/main/java/qupath/lib/images/servers/bioformats/BioFormatsImageServer.java#L982
+    public String getOMEXML() {
+        return ((BioFormatsImageServer) server).dumpMetadata();
     }
 
     public String getPath() {
@@ -132,17 +138,17 @@ public class qpwrapper implements AutoCloseable {
 
     // mm
     public double getPhysSizeX() {
-        return pixcal.getPixelWidthMicrons() * 1000.0 * server.getWidth();
+        return pixcal.getPixelWidthMicrons() * server.getWidth() / 1000.0;
     }
 
     // mm
     public double getPhysSizeY() {
-        return pixcal.getPixelHeightMicrons() * 1000.0 * server.getHeight();
+        return pixcal.getPixelHeightMicrons() * server.getHeight() / 1000.0;
     }
 
     // mm
     public double getPhysSizeZ() {
-        return pixcal.getZSpacingMicrons() * 1000.0 * server.nZSlices();
+        return pixcal.getZSpacingMicrons() * server.nZSlices() / 1000.0;
     }
 
     // s
@@ -184,15 +190,27 @@ public class qpwrapper implements AutoCloseable {
     }
 
     /**
-     * Request information for one channel (0-based index).
+     * Request color information for one channel (0-based index).
      * 
      * @param channel
      * @return ARGB 32bits
      * 
      * @see ImageServerMetadata#getChannels()
+     * @see https://github.com/qupath/qupath/blob/main/qupath-core/src/main/java/qupath/lib/images/servers/ImageChannel.java#L192
      */
-    public int getChannel(int channel) {
-        return server.getChannel(channel).getColor().intValue();
+    public int getChannelColor(int channel) {
+        var color = server.getChannel(channel).getColor();
+        return color == null ? -1 : color;
+    }
+
+    /**
+     * Request name for one channel (0-based index).
+     * 
+     * @param channel
+     * @return
+     */
+    public String getChannelName(int channel) {
+        return server.getChannel(channel).getName();
     }
 
     /**

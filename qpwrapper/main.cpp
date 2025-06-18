@@ -13,7 +13,7 @@
 
 std::string pixelTypeStr(jint pixelType)
 {
-    static std::string typeStr[9]{"uint8", "int8", "uint16", "int16", "uint32", "int32", "float", "double"};
+    static std::string typeStr[8]{"uint8", "int8", "uint16", "int16", "uint32", "int32", "float", "double"};
 
     assert(0 <= pixelType && pixelType <= 7);
     return typeStr[pixelType];
@@ -78,7 +78,7 @@ int main(int argc, char* argv[])
         exit(EXIT_FAILURE);
     }
 
-    // getMetadata
+    // getMetadata()
     jmethodID getMetadataMethod = env->GetMethodID(wrapper_cls, "getMetadata", "()Ljava/lang/String;");
     jstring metadata = (jstring)env->CallObjectMethod(wrapper_instance, getMetadataMethod);
     if (metadata != nullptr)
@@ -90,6 +90,19 @@ int main(int argc, char* argv[])
     else
         std::cerr << "Error retrieving metadata" << std::endl;
     env->DeleteLocalRef(metadata);
+
+    // getOMEXML()
+    jmethodID getOMEXLMethod = env->GetMethodID(wrapper_cls, "getOMEXML", "()Ljava/lang/String;");
+    jstring omexml = (jstring)env->CallObjectMethod(wrapper_instance, getOMEXLMethod);
+    if (omexml != nullptr)
+    {
+        const char* omexmlChars = env->GetStringUTFChars(omexml, nullptr);
+        std::cout << omexmlChars << std::endl;
+        env->ReleaseStringUTFChars(omexml, omexmlChars);
+    }
+    else
+        std::cerr << "Error retrieving OME-XML" << std::endl;
+    env->DeleteLocalRef(omexml);
 
     // getPixelType()
     jmethodID getPixelTypeMethod = env->GetMethodID(wrapper_cls, "getPixelType", "()I");

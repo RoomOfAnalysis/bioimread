@@ -44,3 +44,26 @@ target_link_libraries(${PROJECT_NAME}_test
     PRIVATE ${JNI_LIBRARIES}
     PRIVATE ${OpenCV_LIBS}
 )
+
+add_library(qpreader
+    STATIC
+    ${bfwrapper_dir}/jvmwrapper.cpp ${bfwrapper_dir}/jvmwrapper.hpp
+    reader.cpp reader.hpp
+)
+add_dependencies(qpreader
+    ${PROJECT_NAME}
+)
+target_include_directories(qpreader
+    PRIVATE ${JNI_INCLUDE_DIRS}
+    PRIVATE ${bfwrapper_dir}
+)
+target_link_libraries(qpreader
+    PUBLIC ${JNI_LIBRARIES}
+)
+
+add_executable(qpreader_test
+    ${CMAKE_CURRENT_SOURCE_DIR}/reader_test.cpp
+)
+target_link_libraries(qpreader_test
+    PRIVATE qpreader
+)
