@@ -67,3 +67,21 @@ add_executable(qpreader_test
 target_link_libraries(qpreader_test
     PRIVATE qpreader
 )
+
+add_library(deepzoom
+    STATIC
+    deepzoom.cpp deepzoom.hpp
+)
+add_dependencies(deepzoom
+    ${PROJECT_NAME}
+)
+target_link_libraries(deepzoom
+    PUBLIC qpreader
+)
+
+add_executable(deepzoom_test
+    ${CMAKE_CURRENT_SOURCE_DIR}/deepzoom_test.cpp
+)
+target_link_libraries(deepzoom_test
+    PRIVATE deepzoom
+)
