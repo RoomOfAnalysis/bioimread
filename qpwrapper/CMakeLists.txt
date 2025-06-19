@@ -10,6 +10,12 @@ find_package(JNI REQUIRED)
 
 find_package(OpenCV REQUIRED)
 
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets Gui WebEngineWidgets WebChannel)
+
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+
 include(UseJava)
 set(JAVA_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/java)
 file(MAKE_DIRECTORY ${JAVA_OUTPUT_DIR})
@@ -83,5 +89,17 @@ add_executable(deepzoom_test
     ${CMAKE_CURRENT_SOURCE_DIR}/deepzoom_test.cpp
 )
 target_link_libraries(deepzoom_test
+    PRIVATE deepzoom
+)
+
+add_executable(tilesviewer
+    ${CMAKE_CURRENT_SOURCE_DIR}/tilesviewer.cpp
+)
+target_link_libraries(tilesviewer
+    PRIVATE Qt${QT_VERSION_MAJOR}::Core
+    PRIVATE Qt${QT_VERSION_MAJOR}::Widgets
+    PRIVATE Qt${QT_VERSION_MAJOR}::Gui
+    PRIVATE Qt${QT_VERSION_MAJOR}::WebEngineWidgets
+    PRIVATE Qt${QT_VERSION_MAJOR}::WebChannel
     PRIVATE deepzoom
 )
