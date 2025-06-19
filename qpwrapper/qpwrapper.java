@@ -20,6 +20,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.regions.ImageRegion;
 
@@ -318,6 +319,39 @@ public class qpwrapper implements AutoCloseable {
     }
 
     /**
+     * Get the preferred resolution level to request regions from an ImageServer at
+     * a specified downsample level.
+     * 
+     * @param server
+     * @param requestedDownsample
+     * @return
+     * 
+     * @see #getPreferredDownsampleFactor(ImageServer, double)
+     */
+    public int getPreferredResolutionLevel(double requestedDownsample) {
+        return ServerTools.getPreferredResolutionLevel(server, requestedDownsample);
+    }
+
+    /**
+     * Get the downsample factor supported by the server that is the best match for
+     * the requested downsample.
+     * <p>
+     * Generally, this will be &lt;= the requested downsample (but it may be
+     * slightly more if the error introduced
+     * would be very small, i.e. if 4 is requested and 4.0001 is available, 4.0001
+     * would be returned).
+     * 
+     * @param server
+     * @param requestedDownsample
+     * @return
+     * 
+     * @see #getPreferredResolutionLevel(ImageServer, double)
+     */
+    public double getPreferredDownsampleFactor(double requestedDownsample) {
+        return ServerTools.getPreferredDownsampleFactor(server, requestedDownsample);
+    }
+
+    /**
      * Read a 2D(+C) image region for a specified z-plane and timepoint.
      * Coordinates and bounding box dimensions are in pixel units, at the full image
      * resolution
@@ -333,7 +367,7 @@ public class qpwrapper implements AutoCloseable {
      * @param z          index for the z-position
      * @param t          index for the timepoint
      * @return PNG byte array for the region being requested
-     * @see https://github.com/qupath/qupath/blob/v0.5.1/qupath-core/src/main/java/qupath/lib/images/servers/AbstractTileableImageServer.java#L266
+     * @see https://github.com/qupath/qupath/blob/main/qupath-core/src/main/java/qupath/lib/images/servers/AbstractTileableImageServer.java#L266
      * @implNote the newly added jars are for this method to work
      */
     public byte[] readRegion(double downsample, int x, int y, int width, int height, int z, int t) {
@@ -407,7 +441,7 @@ public class qpwrapper implements AutoCloseable {
 
     // seems like server's `readRegion` always returns RGB image, maybe no need to
     // convert to PNG, but how about `isRGB`?
-    // https://github.com/qupath/qupath/blob/v0.5.1/qupath-core/src/main/java/qupath/lib/images/servers/AbstractTileableImageServer.java#L266
+    // https://github.com/qupath/qupath/blob/main/qupath-core/src/main/java/qupath/lib/images/servers/AbstractTileableImageServer.java#L266
     private static byte[] bufferedImageToPNGBytes(BufferedImage image) {
         if (image == null)
             return null;

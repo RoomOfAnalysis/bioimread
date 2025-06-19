@@ -67,6 +67,8 @@ struct Reader::impl
     int getLevelCount();
     std::vector<std::pair<int, int>> getLevelDimensions();
     std::vector<double> getLevelDownsamples();
+    int getPreferredResolutionLevel(double downsample);
+    double getPreferredDownsampleFactor(double downsample);
     // PNG bytes
     std::vector<unsigned char> readRegion(int level, int x, int y, int w, int h, int z, int t);
 
@@ -262,6 +264,16 @@ std::vector<std::pair<int, int>> Reader::getLevelDimensions() const
 std::vector<double> Reader::getLevelDownsamples() const
 {
     return pimpl->m_meta.level_downsamples;
+}
+
+int Reader::getPreferredResolutionLevel(double downsample) const
+{
+    return pimpl->getPreferredResolutionLevel(downsample);
+}
+
+double Reader::getPreferredDownsampleFactor(double downsample) const
+{
+    return pimpl->getPreferredDownsampleFactor(downsample);
 }
 
 std::vector<unsigned char> Reader::readRegion(int level, int x, int y, int w, int h, int z, int t) const
@@ -474,6 +486,17 @@ std::vector<double> Reader::impl::getLevelDownsamples()
     }
     jvm_env->DeleteLocalRef(downsamples);
     return res;
+}
+
+int Reader::impl::getPreferredResolutionLevel(double downsample)
+{
+    return jvm_env->CallIntMethod(
+        wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "getPreferredResolutionLevel", "(D)I"), downsample);
+}
+double Reader::impl::getPreferredDownsampleFactor(double downsample)
+{
+    return jvm_env->CallDoubleMethod(
+        wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "getPreferredDownsampleFactor", "(D)D"), downsample);
 }
 
 std::vector<unsigned char> Reader::impl::readRegion(int level, int x, int y, int w, int h, int z, int t)

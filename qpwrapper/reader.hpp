@@ -60,6 +60,8 @@ public:
     int getLevelCount() const;
     std::vector<std::pair<int, int>> getLevelDimensions() const;
     std::vector<double> getLevelDownsamples() const;
+    int getPreferredResolutionLevel(double downsample) const;
+    double getPreferredDownsampleFactor(double downsample) const;
     // PNG bytes
     std::vector<unsigned char> readRegion(int level, int x, int y, int w, int h, int z, int t) const;
 
