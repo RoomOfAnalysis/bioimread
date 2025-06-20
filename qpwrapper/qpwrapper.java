@@ -14,26 +14,25 @@ import javax.imageio.ImageIO;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ColorTools;
-import qupath.lib.images.servers.bioformats.BioFormatsServerBuilder;
 import qupath.lib.images.servers.bioformats.BioFormatsImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.regions.ImageRegion;
 
 public class qpwrapper implements AutoCloseable {
-    private BioFormatsServerBuilder builder;
     private ImageServer<BufferedImage> server; // https://github.com/qupath/qupath/blob/main/qupath-core/src/main/java/qupath/lib/images/servers/ImageServer.java
     private ImageServerMetadata meta;
     private PixelCalibration pixcal;
 
     public qpwrapper(String path) {
         try {
-            builder = new BioFormatsServerBuilder();
-            server = builder.buildServer(Paths.get(path).toUri());
+            server = new ImageServerProvider().buildServer(path,
+                    BufferedImage.class);
             meta = server.getMetadata();
             pixcal = server.getPixelCalibration();
         } catch (Exception e) {
@@ -66,7 +65,10 @@ public class qpwrapper implements AutoCloseable {
 
     // https://github.com/qupath/qupath/blob/main/qupath-extension-bioformats/src/main/java/qupath/lib/images/servers/bioformats/BioFormatsImageServer.java#L982
     public String getOMEXML() {
-        return ((BioFormatsImageServer) server).dumpMetadata();
+        if (server instanceof BioFormatsImageServer) {
+            return ((BioFormatsImageServer) server).dumpMetadata();
+        }
+        return null;
     }
 
     public String getPath() {
@@ -408,9 +410,8 @@ public class qpwrapper implements AutoCloseable {
     }
 
     /**
-     * Get a tile for the request - ideally from the cache, but otherwise read it
-     * and
-     * then add it to the cache.
+     * Get a tile for the request - no cache since it called `bioformats`'s'
+     * `openBytes`
      * 
      * @param level  resolution level for the region
      * @param x      x coordinate of the top left of the region bounding box
@@ -423,18 +424,21 @@ public class qpwrapper implements AutoCloseable {
      * @apiNote better not use this method, since it breaks `ImageServer<T>`
      *          interface, use `readRegion` instead
      */
-    public byte[] getTile(int level, int x, int y, int width, int height, int z, int t) {
+    public byte[] readTile(int level, int x, int y, int width, int height, int z, int t) {
         // System.out.println(
-        // String.format("getTile: [level: %d, x: %d, y: %d, width: %d, height: %d, z:
+        // String.format("readTile: [level: %d, x: %d, y: %d, width: %d, height: %d, z:
         // %d, t: %d]",
         // level, x, y, width, height, z, t));
-        try {
-            BufferedImage image = ((BioFormatsImageServer) server).readTile(TileRequest.createInstance(server, level,
-                    ImageRegion.createInstance(
-                            x, y, width, height, z, t)));
-            return bufferedImageToPNGBytes(image);
-        } catch (IOException e) {
-            e.printStackTrace();
+        if (server instanceof BioFormatsImageServer) {
+            try {
+                BufferedImage image = ((BioFormatsImageServer) server)
+                        .readTile(TileRequest.createInstance(server, level,
+                                ImageRegion.createInstance(
+                                        x, y, width, height, z, t)));
+                return bufferedImageToPNGBytes(image);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
         return null;
     }

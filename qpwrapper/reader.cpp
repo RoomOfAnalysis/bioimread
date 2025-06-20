@@ -71,6 +71,10 @@ struct Reader::impl
     double getPreferredDownsampleFactor(double downsample);
     // PNG bytes
     std::vector<unsigned char> readRegion(int level, int x, int y, int w, int h, int z, int t);
+    std::vector<unsigned char> readTile(int level, int x, int y, int w, int h, int z, int t);
+    std::vector<unsigned char> getDefaultThumbnail(int z, int t);
+    std::vector<std::string> getAssociatedImageNames();
+    std::vector<unsigned char> getAssociatedImage(std::string const& name);
 
     void force_gc();
 };
@@ -279,6 +283,26 @@ double Reader::getPreferredDownsampleFactor(double downsample) const
 std::vector<unsigned char> Reader::readRegion(int level, int x, int y, int w, int h, int z, int t) const
 {
     return pimpl->readRegion(level, x, y, w, h, z, t);
+}
+
+std::vector<unsigned char> Reader::readTile(int level, int x, int y, int w, int h, int z, int t) const
+{
+    return pimpl->readTile(level, x, y, w, h, z, t);
+}
+
+std::vector<unsigned char> Reader::getDefaultThumbnail(int z, int t) const
+{
+    return pimpl->getDefaultThumbnail(z, t);
+}
+
+std::vector<std::string> Reader::getAssociatedImageNames() const
+{
+    return pimpl->getAssociatedImageNames();
+}
+
+std::vector<unsigned char> Reader::getAssociatedImage(std::string const& name) const
+{
+    return pimpl->getAssociatedImage(name);
 }
 
 void Reader::impl::meta::PrintSelf() const
@@ -501,15 +525,96 @@ double Reader::impl::getPreferredDownsampleFactor(double downsample)
 
 std::vector<unsigned char> Reader::impl::readRegion(int level, int x, int y, int w, int h, int z, int t)
 {
+    std::vector<unsigned char> bytes;
+
     jbyteArray byteArray = (jbyteArray)jvm_env->CallObjectMethod(
         wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "readRegion", "(IIIIIII)[B"), level, x, y, w, h, z, t);
-
-    assert(byteArray != nullptr);
-
-    jsize len = jvm_env->GetArrayLength(byteArray);
-    std::vector<unsigned char> bytes(len);
-    jvm_env->GetByteArrayRegion(byteArray, 0, len, (jbyte*)bytes.data());
+    if (byteArray != nullptr)
+    {
+        jsize len = jvm_env->GetArrayLength(byteArray);
+        bytes.resize(len);
+        jvm_env->GetByteArrayRegion(byteArray, 0, len, (jbyte*)bytes.data());
+    }
     jvm_env->DeleteLocalRef(byteArray);
+
+    return bytes;
+}
+
+std::vector<unsigned char> Reader::impl::readTile(int level, int x, int y, int w, int h, int z, int t)
+{
+    std::vector<unsigned char> bytes;
+
+    jbyteArray byteArray = (jbyteArray)jvm_env->CallObjectMethod(
+        wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "readTile", "(IIIIIII)[B"), level, x, y, w, h, z, t);
+    if (byteArray != nullptr)
+    {
+        jsize len = jvm_env->GetArrayLength(byteArray);
+        bytes.resize(len);
+        jvm_env->GetByteArrayRegion(byteArray, 0, len, (jbyte*)bytes.data());
+    }
+    jvm_env->DeleteLocalRef(byteArray);
+
+    return bytes;
+}
+
+std::vector<unsigned char> Reader::impl::getDefaultThumbnail(int z, int t)
+{
+    std::vector<unsigned char> bytes;
+
+    jbyteArray byteArray = (jbyteArray)jvm_env->CallObjectMethod(
+        wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "getDefaultThumbnail", "(II)[B"), z, t);
+    if (byteArray != nullptr)
+    {
+        jsize len = jvm_env->GetArrayLength(byteArray);
+        bytes.resize(len);
+        jvm_env->GetByteArrayRegion(byteArray, 0, len, (jbyte*)bytes.data());
+    }
+    jvm_env->DeleteLocalRef(byteArray);
+
+    return bytes;
+}
+
+std::vector<std::string> Reader::impl::getAssociatedImageNames()
+{
+    std::vector<std::string> associatedImageNamesVec;
+
+    jobjectArray associatedImageNames = (jobjectArray)jvm_env->CallObjectMethod(
+        wrapper_instance, jvm_env->GetMethodID(wrapper_cls, "getAssociatedImageNames", "()[Ljava/lang/String;"));
+    if (associatedImageNames != nullptr)
+    {
+        jsize length = jvm_env->GetArrayLength(associatedImageNames);
+        associatedImageNamesVec.reserve(length);
+        for (jsize i = 0; i < length; i++)
+        {
+            jstring name = (jstring)jvm_env->GetObjectArrayElement(associatedImageNames, i);
+            if (auto* nameChars = jvm_env->GetStringUTFChars(name, nullptr); nameChars)
+            {
+                associatedImageNamesVec.emplace_back(nameChars);
+                jvm_env->ReleaseStringUTFChars(name, nameChars);
+                jvm_env->DeleteLocalRef(name);
+            }
+        }
+    }
+    jvm_env->DeleteLocalRef(associatedImageNames);
+
+    return associatedImageNamesVec;
+}
+
+std::vector<unsigned char> Reader::impl::getAssociatedImage(std::string const& name)
+{
+    std::vector<unsigned char> bytes;
+
+    jstring nameStr = jvm_env->NewStringUTF(name.c_str());
+    jbyteArray byteArray = (jbyteArray)jvm_env->CallObjectMethod(
+        wrapper_instance, jvm_env->GetMethodID(wrapper_cls, "getAssociatedImage", "(Ljava/lang/String;)[B"), nameStr);
+    if (byteArray != nullptr)
+    {
+        jsize length = jvm_env->GetArrayLength(byteArray);
+        bytes.resize(length);
+        jvm_env->GetByteArrayRegion(byteArray, 0, length, (jbyte*)bytes.data());
+    }
+    jvm_env->DeleteLocalRef(byteArray);
+    jvm_env->DeleteLocalRef(nameStr);
 
     return bytes;
 }

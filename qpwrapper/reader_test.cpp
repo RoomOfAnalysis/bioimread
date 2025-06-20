@@ -28,6 +28,15 @@ int main(int argc, char* argv[])
     auto downsamples = reader.getLevelDownsamples();
     for (int i = 0; i < downsamples.size(); ++i)
         std::cout << "Image level " << i << " downsample: " << downsamples[i] << std::endl;
+    auto defaultThumbnail = reader.getDefaultThumbnail(0, 0);
+    std::cout << "Default thumbnail size: " << defaultThumbnail.size() << std::endl;
+    auto associatedImageNames = reader.getAssociatedImageNames();
+    for (auto const& name : associatedImageNames)
+    {
+        std::cout << "Associated image: " << name << std::endl;
+        auto image = reader.getAssociatedImage(name);
+        std::cout << "Associated image size: " << image.size() << std::endl;
+    }
 
     return 0;
 }

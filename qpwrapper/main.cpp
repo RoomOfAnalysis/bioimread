@@ -239,14 +239,14 @@ int main(int argc, char* argv[])
         env->DeleteLocalRef(sizeArray);
     }
 
-    // getTile()
-    jmethodID getTileMethod = env->GetMethodID(wrapper_cls, "getTile", "(IIIIIII)[B");
+    // readTile()
+    jmethodID readTileMethod = env->GetMethodID(wrapper_cls, "readTile", "(IIIIIII)[B");
     jbyteArray tileBytes =
-        (jbyteArray)env->CallObjectMethod(wrapper_instance, getTileMethod, nResolutions - 1, 0, 0, 256, 256, 0, 0);
+        (jbyteArray)env->CallObjectMethod(wrapper_instance, readTileMethod, nResolutions - 1, 0, 0, 256, 256, 0, 0);
     if (tileBytes != nullptr)
     {
         jsize length = env->GetArrayLength(tileBytes);
-        std::cout << "getTile: " << length << " bytes" << std::endl;
+        std::cout << "readTile: " << length << " bytes" << std::endl;
         std::vector<uchar> bytes(length);
         env->GetByteArrayRegion(tileBytes, 0, length, (jbyte*)bytes.data());
 
