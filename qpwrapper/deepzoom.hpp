@@ -63,5 +63,7 @@ private:
     std::vector<std::pair<int, int>> m_t_dimensions;   // tile dimensions
     std::vector<int> m_preferred_slide_levels;         // preferred slide levels for each deepzoom level
     std::vector<double> m_level_downsamples;           // slide level downsample factors
-    std::vector<double> m_level_dz_downsamples;        // deepzoom level downsample factors
+    std::vector<double>
+        m_level_dz_downsamples; // deepzoom level downsample factors (ratio of deepzoom level to slide level)
+    std::vector<double> m_level_0_dz_downsamples; // total downsamples for each Deep Zoom level (2 ** x)
 };

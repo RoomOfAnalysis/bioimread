@@ -70,6 +70,7 @@ struct Reader::impl
     int getPreferredResolutionLevel(double downsample);
     double getPreferredDownsampleFactor(double downsample);
     // PNG bytes
+    std::vector<unsigned char> readRegion(double downsample, int x, int y, int w, int h, int z, int t);
     std::vector<unsigned char> readRegion(int level, int x, int y, int w, int h, int z, int t);
     std::vector<unsigned char> readTile(int level, int x, int y, int w, int h, int z, int t);
     std::vector<unsigned char> getDefaultThumbnail(int z, int t);
@@ -278,6 +279,11 @@ int Reader::getPreferredResolutionLevel(double downsample) const
 double Reader::getPreferredDownsampleFactor(double downsample) const
 {
     return pimpl->getPreferredDownsampleFactor(downsample);
+}
+
+std::vector<unsigned char> Reader::readRegion(double downsample, int x, int y, int w, int h, int z, int t) const
+{
+    return pimpl->readRegion(downsample, x, y, w, h, z, t);
 }
 
 std::vector<unsigned char> Reader::readRegion(int level, int x, int y, int w, int h, int z, int t) const
@@ -521,6 +527,24 @@ double Reader::impl::getPreferredDownsampleFactor(double downsample)
 {
     return jvm_env->CallDoubleMethod(
         wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "getPreferredDownsampleFactor", "(D)D"), downsample);
+}
+
+std::vector<unsigned char> Reader::impl::readRegion(double downsample, int x, int y, int w, int h, int z, int t)
+{
+    std::vector<unsigned char> bytes;
+
+    jbyteArray byteArray = (jbyteArray)jvm_env->CallObjectMethod(
+        wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "readRegion", "(DIIIIII)[B"), downsample, x, y, w, h, z,
+        t);
+    if (byteArray != nullptr)
+    {
+        jsize len = jvm_env->GetArrayLength(byteArray);
+        bytes.resize(len);
+        jvm_env->GetByteArrayRegion(byteArray, 0, len, (jbyte*)bytes.data());
+    }
+    jvm_env->DeleteLocalRef(byteArray);
+
+    return bytes;
 }
 
 std::vector<unsigned char> Reader::impl::readRegion(int level, int x, int y, int w, int h, int z, int t)

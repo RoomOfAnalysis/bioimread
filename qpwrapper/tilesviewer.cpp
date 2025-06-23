@@ -77,8 +77,6 @@ private:
     QString m_dzi;
 };
 
-// FIXME: some formats like `ndpi` have wrong downsample factors...
-// their `m_levels` and `m_l_dimensions` are quite different from `openslide`...
 int main(int argc, char* argv[])
 {
     using namespace Qt::StringLiterals;

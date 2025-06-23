@@ -1,4 +1,6 @@
 import java.awt.image.BufferedImage;
+import java.awt.Graphics2D;
+import java.awt.Image;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
@@ -404,6 +406,8 @@ public class qpwrapper implements AutoCloseable {
      * @param t      index for the timepoint
      * @return PNG byte array for the region being requested
      * @see #readRegion(double, int, int, int, int, int, int)
+     * @apiNote since `bioformats`'s level always different from `openslide`'s,
+     *          should use above `downsample` one
      */
     public byte[] readRegion(int level, int x, int y, int width, int height, int z, int t) {
         return readRegion(getDownsampleForResolution(level), x, y, width, height, z, t);
@@ -462,5 +466,16 @@ public class qpwrapper implements AutoCloseable {
             e.printStackTrace();
         }
         return baos.toByteArray();
+    }
+
+    public static BufferedImage resize(BufferedImage img, int newW, int newH) {
+        Image tmp = img.getScaledInstance(newW, newH, Image.SCALE_SMOOTH);
+        BufferedImage dimg = new BufferedImage(newW, newH, BufferedImage.TYPE_INT_ARGB);
+
+        Graphics2D g2d = dimg.createGraphics();
+        g2d.drawImage(tmp, 0, 0, null);
+        g2d.dispose();
+
+        return dimg;
     }
 }

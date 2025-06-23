@@ -38,6 +38,9 @@ DeepZoomGenerator::DeepZoomGenerator(std::string filepath, int tile_size, int ov
     // but in QuPath 6.0.0 with bioformats 8.1.1 levels = openslide levels ...
     // i think this should be caused by bioformats ...
     // https://github.com/ome/bioformats/issues/3757
+    // for other formats (e.g .ndpi), openslide will add additional downsample levels if the tilesize divides evenly...
+    // https://forum.image.sc/t/different-number-of-image-levels-detected-by-openslide-and-bio-formats-for-ndpi-files/74169
+    // https://github.com/openslide/openslide/blob/main/src/openslide-vendor-hamamatsu.c#L1199
     m_levels = m_reader->getLevelCount();
     m_l_dimensions = m_reader->getLevelDimensions();
 
@@ -65,27 +68,28 @@ DeepZoomGenerator::DeepZoomGenerator(std::string filepath, int tile_size, int ov
     //                                    m_l_dimensions[0].second / (double)m_l_dimensions[i].second) /
     //                                   2.);
 
-    std::vector<double> level_0_dz_downsamples;
-    level_0_dz_downsamples.reserve(m_dz_levels);
+    m_level_0_dz_downsamples.reserve(m_dz_levels);
     m_preferred_slide_levels.reserve(m_dz_levels);
     for (auto l = 0; l < m_dz_levels; l++)
     {
         auto d = std::pow(2, (m_dz_levels - l - 1));
-        level_0_dz_downsamples.push_back(d);
+        m_level_0_dz_downsamples.push_back(d);
         m_preferred_slide_levels.push_back(_get_best_level_for_downsample(d));
-        // https://github.com/qupath/qupath/blob/262821bd3b1b8acbbfea5f30c00c598a8ee02475/qupath-core/src/main/java/qupath/lib/images/servers/ServerTools.java#L93
-        // m_preferred_slide_levels.push_back(m_reader->getPreferredResolutionLevel(d));
     }
 
     m_level_dz_downsamples.reserve(m_dz_levels);
     for (auto l = 0; l < m_dz_levels; l++)
-        m_level_dz_downsamples.push_back(level_0_dz_downsamples[l] / m_level_downsamples[m_preferred_slide_levels[l]]);
+        m_level_dz_downsamples.push_back(m_level_0_dz_downsamples[l] /
+                                         m_level_downsamples[m_preferred_slide_levels[l]]);
 
 #ifdef DEBUG_PRINT
+    std::cout << "m_levels: " << m_levels << "\n";
+    std::cout << "m_dz_levels: " << m_dz_levels << "\n";
     std::cout << "m_l_dimensions: " << m_l_dimensions << "\n";
     std::cout << "m_dzl_dimensions: " << m_dzl_dimensions << "\n";
+    std::cout << "m_t_dimensions: " << m_t_dimensions << "\n";
     std::cout << "m_level_downsamples: " << m_level_downsamples << "\n";
-    std::cout << "level_0_dz_downsamples: " << level_0_dz_downsamples << "\n";
+    std::cout << "m_level_0_dz_downsamples: " << m_level_0_dz_downsamples << "\n";
     std::cout << "m_preferred_slide_levels: " << m_preferred_slide_levels << "\n";
     std::cout << "m_level_dz_downsamples: " << m_level_dz_downsamples << std::endl;
 #endif
@@ -131,8 +135,39 @@ std::vector<unsigned char> DeepZoomGenerator::get_tile(int dz_level, int col, in
     std::cout << "z_size: " << z_size << std::endl;
 #endif
     // note: need use width and height in level 0 (see `qpwrapper's readRegion`)
-    return m_reader->readRegion(slide_level, xx, yy, static_cast<int>(width * level_downsample + 0.5),
-                                static_cast<int>(height * level_downsample + 0.5), 0, 0);
+    return m_reader->readRegion(m_level_0_dz_downsamples[dz_level], xx, yy,
+                                static_cast<int>(std::ceil(width * level_downsample)),
+                                static_cast<int>(std::ceil(height * level_downsample)), 0, 0);
+
+    // auto [originalWidth, originalHeight] = m_l_dimensions[0];
+    // double factor = m_level_0_dz_downsamples[dz_level];
+    // int levelWidth = (int)std::ceil(originalWidth / factor);
+    // int levelHeight = (int)std::ceil(originalHeight / factor);
+
+    // int nbCols = (int)std::ceil((double)levelWidth / m_tile_size);
+    // int nbRows = (int)std::ceil((double)levelHeight / m_tile_size);
+
+    // assert(col >= 0 && col < nbCols && row >= 0 && row < nbRow);
+
+    // int x = col * m_tile_size - (col == 0 ? 0 : m_overlap);
+    // int y = row * m_tile_size - (row == 0 ? 0 : m_overlap);
+    // int w = m_tile_size + (col == 0 ? 1 : 2) * m_overlap;
+    // int h = m_tile_size + (row == 0 ? 1 : 2) * m_overlap;
+
+    // if (x + w > levelWidth) w = levelWidth - x;
+    // if (y + h > levelHeight) h = levelHeight - y;
+
+    // int scaledX = (int)std::ceil(x * factor);
+    // int scaledY = (int)std::ceil(y * factor);
+    // int scaledWidth = (int)std::ceil(w * factor);
+    // int scaledHeight = (int)std::ceil(h * factor);
+    // if (scaledX + scaledWidth > originalWidth) scaledWidth = originalWidth - scaledX;
+    // if (scaledY + scaledHeight > originalHeight) scaledHeight = originalHeight - scaledY;
+
+    // std::cout << "scaledX: " << scaledX << " scaledY: " << scaledY << " scaledWidth: " << scaledWidth
+    //           << " scaledHeight: " << scaledHeight << std::endl;
+
+    // return m_reader->readRegion(factor, scaledX, scaledY, scaledWidth, scaledHeight, 0, 0);
 }
 
 std::tuple<std::pair<int, int>, int, std::pair<int, int>> DeepZoomGenerator::get_tile_coordinates(int dz_level, int col,
@@ -213,4 +248,7 @@ int DeepZoomGenerator::_get_best_level_for_downsample(double downsample) const
     for (int i = 1; i < m_levels; i++)
         if (downsample < m_level_downsamples[i]) return i - 1;
     return m_levels - 1;
+
+    // https://github.com/qupath/qupath/blob/262821bd3b1b8acbbfea5f30c00c598a8ee02475/qupath-core/src/main/java/qupath/lib/images/servers/ServerTools.java#L93
+    // return m_reader->getPreferredResolutionLevel(downsample);
 }

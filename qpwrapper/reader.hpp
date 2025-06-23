@@ -63,6 +63,7 @@ public:
     int getPreferredResolutionLevel(double downsample) const;
     double getPreferredDownsampleFactor(double downsample) const;
     // PNG bytes
+    std::vector<unsigned char> readRegion(double downsample, int x, int y, int w, int h, int z, int t) const;
     std::vector<unsigned char> readRegion(int level, int x, int y, int w, int h, int z, int t) const;
     std::vector<unsigned char> readTile(int level, int x, int y, int w, int h, int z, int t) const;
     std::vector<unsigned char> getDefaultThumbnail(int z, int t) const;
