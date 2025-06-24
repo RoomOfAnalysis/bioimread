@@ -70,12 +70,15 @@ struct Reader::impl
     int getPreferredResolutionLevel(double downsample);
     double getPreferredDownsampleFactor(double downsample);
     // PNG bytes
-    std::vector<unsigned char> readRegion(double downsample, int x, int y, int w, int h, int z, int t);
-    std::vector<unsigned char> readRegion(int level, int x, int y, int w, int h, int z, int t);
-    std::vector<unsigned char> readTile(int level, int x, int y, int w, int h, int z, int t);
-    std::vector<unsigned char> getDefaultThumbnail(int z, int t);
+    std::vector<unsigned char> readRegion(double downsample, int x, int y, int w, int h, int z, int t,
+                                          ImageFormat format, float quality);
+    std::vector<unsigned char> readRegion(int level, int x, int y, int w, int h, int z, int t, ImageFormat format,
+                                          float quality);
+    std::vector<unsigned char> readTile(int level, int x, int y, int w, int h, int z, int t, ImageFormat format,
+                                        float quality);
+    std::vector<unsigned char> getDefaultThumbnail(int z, int t, ImageFormat format, float quality);
     std::vector<std::string> getAssociatedImageNames();
-    std::vector<unsigned char> getAssociatedImage(std::string const& name);
+    std::vector<unsigned char> getAssociatedImage(std::string const& name, ImageFormat format, float quality);
 
     void force_gc();
 };
@@ -281,24 +284,27 @@ double Reader::getPreferredDownsampleFactor(double downsample) const
     return pimpl->getPreferredDownsampleFactor(downsample);
 }
 
-std::vector<unsigned char> Reader::readRegion(double downsample, int x, int y, int w, int h, int z, int t) const
+std::vector<unsigned char> Reader::readRegion(double downsample, int x, int y, int w, int h, int z, int t,
+                                              ImageFormat format, float quality) const
 {
-    return pimpl->readRegion(downsample, x, y, w, h, z, t);
+    return pimpl->readRegion(downsample, x, y, w, h, z, t, format, quality);
 }
 
-std::vector<unsigned char> Reader::readRegion(int level, int x, int y, int w, int h, int z, int t) const
+std::vector<unsigned char> Reader::readRegion(int level, int x, int y, int w, int h, int z, int t, ImageFormat format,
+                                              float quality) const
 {
-    return pimpl->readRegion(level, x, y, w, h, z, t);
+    return pimpl->readRegion(level, x, y, w, h, z, t, format, quality);
 }
 
-std::vector<unsigned char> Reader::readTile(int level, int x, int y, int w, int h, int z, int t) const
+std::vector<unsigned char> Reader::readTile(int level, int x, int y, int w, int h, int z, int t, ImageFormat format,
+                                            float quality) const
 {
-    return pimpl->readTile(level, x, y, w, h, z, t);
+    return pimpl->readTile(level, x, y, w, h, z, t, format, quality);
 }
 
-std::vector<unsigned char> Reader::getDefaultThumbnail(int z, int t) const
+std::vector<unsigned char> Reader::getDefaultThumbnail(int z, int t, ImageFormat format, float quality) const
 {
-    return pimpl->getDefaultThumbnail(z, t);
+    return pimpl->getDefaultThumbnail(z, t, format, quality);
 }
 
 std::vector<std::string> Reader::getAssociatedImageNames() const
@@ -306,9 +312,9 @@ std::vector<std::string> Reader::getAssociatedImageNames() const
     return pimpl->getAssociatedImageNames();
 }
 
-std::vector<unsigned char> Reader::getAssociatedImage(std::string const& name) const
+std::vector<unsigned char> Reader::getAssociatedImage(std::string const& name, ImageFormat format, float quality) const
 {
-    return pimpl->getAssociatedImage(name);
+    return pimpl->getAssociatedImage(name, format, quality);
 }
 
 void Reader::impl::meta::PrintSelf() const
@@ -529,12 +535,76 @@ double Reader::impl::getPreferredDownsampleFactor(double downsample)
         wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "getPreferredDownsampleFactor", "(D)D"), downsample);
 }
 
-std::vector<unsigned char> Reader::impl::readRegion(double downsample, int x, int y, int w, int h, int z, int t)
+std::vector<unsigned char> Reader::impl::readRegion(double downsample, int x, int y, int w, int h, int z, int t,
+                                                    ImageFormat format, float quality)
 {
     std::vector<unsigned char> bytes;
 
+    jstring formatStr = jvm_env->NewStringUTF((format == ImageFormat::PNG) ? "PNG" : "JPG");
     jbyteArray byteArray = (jbyteArray)jvm_env->CallObjectMethod(
-        wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "readRegion", "(DIIIIII)[B"), downsample, x, y, w, h, z,
+        wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "readRegion", "(DIIIIIILjava/lang/String;F)[B"),
+        downsample, x, y, w, h, z, t, formatStr, quality);
+    if (byteArray != nullptr)
+    {
+        jsize len = jvm_env->GetArrayLength(byteArray);
+        bytes.resize(len);
+        jvm_env->GetByteArrayRegion(byteArray, 0, len, (jbyte*)bytes.data());
+    }
+    jvm_env->DeleteLocalRef(byteArray);
+    jvm_env->DeleteLocalRef(formatStr);
+
+    return bytes;
+}
+
+std::vector<unsigned char> Reader::impl::readRegion(int level, int x, int y, int w, int h, int z, int t,
+                                                    ImageFormat format, float quality)
+{
+    std::vector<unsigned char> bytes;
+
+    jstring formatStr = jvm_env->NewStringUTF((format == ImageFormat::PNG) ? "PNG" : "JPG");
+    jbyteArray byteArray = (jbyteArray)jvm_env->CallObjectMethod(
+        wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "readRegion", "(IIIIIIILjava/lang/String;F)[B"), level,
+        x, y, w, h, z, t, formatStr, quality);
+    if (byteArray != nullptr)
+    {
+        jsize len = jvm_env->GetArrayLength(byteArray);
+        bytes.resize(len);
+        jvm_env->GetByteArrayRegion(byteArray, 0, len, (jbyte*)bytes.data());
+    }
+    jvm_env->DeleteLocalRef(byteArray);
+    jvm_env->DeleteLocalRef(formatStr);
+
+    return bytes;
+}
+
+std::vector<unsigned char> Reader::impl::readTile(int level, int x, int y, int w, int h, int z, int t,
+                                                  ImageFormat format, float quality)
+{
+    std::vector<unsigned char> bytes;
+
+    jstring formatStr = jvm_env->NewStringUTF((format == ImageFormat::PNG) ? "PNG" : "JPG");
+    jbyteArray byteArray = (jbyteArray)jvm_env->CallObjectMethod(
+        wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "readTile", "(IIIIIIILjava/lang/String;F)[B"), level, x,
+        y, w, h, z, t, formatStr, quality);
+    if (byteArray != nullptr)
+    {
+        jsize len = jvm_env->GetArrayLength(byteArray);
+        bytes.resize(len);
+        jvm_env->GetByteArrayRegion(byteArray, 0, len, (jbyte*)bytes.data());
+    }
+    jvm_env->DeleteLocalRef(byteArray);
+    jvm_env->DeleteLocalRef(formatStr);
+
+    return bytes;
+}
+
+std::vector<unsigned char> Reader::impl::getDefaultThumbnail(int z, int t, ImageFormat format, float quality)
+{
+    std::vector<unsigned char> bytes;
+
+    jstring formatStr = jvm_env->NewStringUTF((format == ImageFormat::PNG) ? "PNG" : "JPG");
+    jbyteArray byteArray = (jbyteArray)jvm_env->CallObjectMethod(
+        wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "getDefaultThumbnail", "(IILjava/lang/String;F)[B"), z,
         t);
     if (byteArray != nullptr)
     {
@@ -543,57 +613,7 @@ std::vector<unsigned char> Reader::impl::readRegion(double downsample, int x, in
         jvm_env->GetByteArrayRegion(byteArray, 0, len, (jbyte*)bytes.data());
     }
     jvm_env->DeleteLocalRef(byteArray);
-
-    return bytes;
-}
-
-std::vector<unsigned char> Reader::impl::readRegion(int level, int x, int y, int w, int h, int z, int t)
-{
-    std::vector<unsigned char> bytes;
-
-    jbyteArray byteArray = (jbyteArray)jvm_env->CallObjectMethod(
-        wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "readRegion", "(IIIIIII)[B"), level, x, y, w, h, z, t);
-    if (byteArray != nullptr)
-    {
-        jsize len = jvm_env->GetArrayLength(byteArray);
-        bytes.resize(len);
-        jvm_env->GetByteArrayRegion(byteArray, 0, len, (jbyte*)bytes.data());
-    }
-    jvm_env->DeleteLocalRef(byteArray);
-
-    return bytes;
-}
-
-std::vector<unsigned char> Reader::impl::readTile(int level, int x, int y, int w, int h, int z, int t)
-{
-    std::vector<unsigned char> bytes;
-
-    jbyteArray byteArray = (jbyteArray)jvm_env->CallObjectMethod(
-        wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "readTile", "(IIIIIII)[B"), level, x, y, w, h, z, t);
-    if (byteArray != nullptr)
-    {
-        jsize len = jvm_env->GetArrayLength(byteArray);
-        bytes.resize(len);
-        jvm_env->GetByteArrayRegion(byteArray, 0, len, (jbyte*)bytes.data());
-    }
-    jvm_env->DeleteLocalRef(byteArray);
-
-    return bytes;
-}
-
-std::vector<unsigned char> Reader::impl::getDefaultThumbnail(int z, int t)
-{
-    std::vector<unsigned char> bytes;
-
-    jbyteArray byteArray = (jbyteArray)jvm_env->CallObjectMethod(
-        wrapper_instance, jvm_wrapper->getMethodID(wrapper_cls, "getDefaultThumbnail", "(II)[B"), z, t);
-    if (byteArray != nullptr)
-    {
-        jsize len = jvm_env->GetArrayLength(byteArray);
-        bytes.resize(len);
-        jvm_env->GetByteArrayRegion(byteArray, 0, len, (jbyte*)bytes.data());
-    }
-    jvm_env->DeleteLocalRef(byteArray);
+    jvm_env->DeleteLocalRef(formatStr);
 
     return bytes;
 }
@@ -624,13 +644,16 @@ std::vector<std::string> Reader::impl::getAssociatedImageNames()
     return associatedImageNamesVec;
 }
 
-std::vector<unsigned char> Reader::impl::getAssociatedImage(std::string const& name)
+std::vector<unsigned char> Reader::impl::getAssociatedImage(std::string const& name, ImageFormat format, float quality)
 {
     std::vector<unsigned char> bytes;
 
     jstring nameStr = jvm_env->NewStringUTF(name.c_str());
+    jstring formatStr = jvm_env->NewStringUTF((format == ImageFormat::PNG) ? "PNG" : "JPG");
     jbyteArray byteArray = (jbyteArray)jvm_env->CallObjectMethod(
-        wrapper_instance, jvm_env->GetMethodID(wrapper_cls, "getAssociatedImage", "(Ljava/lang/String;)[B"), nameStr);
+        wrapper_instance,
+        jvm_env->GetMethodID(wrapper_cls, "getAssociatedImage", "(Ljava/lang/String;Ljava/lang/String;F)[B"), nameStr,
+        formatStr, quality);
     if (byteArray != nullptr)
     {
         jsize length = jvm_env->GetArrayLength(byteArray);
@@ -638,6 +661,7 @@ std::vector<unsigned char> Reader::impl::getAssociatedImage(std::string const& n
         jvm_env->GetByteArrayRegion(byteArray, 0, length, (jbyte*)bytes.data());
     }
     jvm_env->DeleteLocalRef(byteArray);
+    jvm_env->DeleteLocalRef(formatStr);
     jvm_env->DeleteLocalRef(nameStr);
 
     return bytes;

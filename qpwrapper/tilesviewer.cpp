@@ -45,9 +45,13 @@ public:
     SlideHandler(QObject* p = nullptr): QObject(p) {}
     ~SlideHandler() = default;
 
-    void setSlide(QString url, int tile_size, int overlap)
+    void setSlide(QString url, int tile_size, int overlap,
+                  DeepZoomGenerator::ImageFormat format = DeepZoomGenerator::ImageFormat::JPG, float quality = 0.75f)
     {
-        m_slide_handler = std::make_unique<DeepZoomGenerator>(url.toStdString(), tile_size, overlap);
+        m_format = format;
+        m_quality = quality;
+        m_slide_handler =
+            std::make_unique<DeepZoomGenerator>(url.toStdString(), tile_size, overlap, m_format, m_quality);
         m_dzi = QString::fromStdString(m_slide_handler->get_dzi());
         emit dziChanged(m_dzi);
         m_mpp = QString::number(m_slide_handler->get_mpp());
@@ -65,7 +69,8 @@ public slots:
         auto y = xy[1].toInt();
 
         auto bytes = m_slide_handler->get_tile(level, x, y);
-        return "data:image/png;base64," + QByteArray(reinterpret_cast<char*>(bytes.data()), bytes.size()).toBase64();
+        return "data:image/" + QString((m_format == DeepZoomGenerator::ImageFormat::PNG) ? "png" : "jpg") + ";base64," +
+               QByteArray(reinterpret_cast<char*>(bytes.data()), bytes.size()).toBase64();
     }
 signals:
     void mppChanged(QString mpp);
@@ -75,6 +80,8 @@ private:
     std::unique_ptr<DeepZoomGenerator> m_slide_handler = nullptr;
     QString m_mpp = "1e-6";
     QString m_dzi;
+    DeepZoomGenerator::ImageFormat m_format = DeepZoomGenerator::ImageFormat::PNG;
+    float m_quality = 1.f;
 };
 
 int main(int argc, char* argv[])
@@ -108,7 +115,7 @@ int main(int argc, char* argv[])
     file_toolbar->addAction("Open", [&]() {
         auto url = QFileDialog::getOpenFileName(&window, "Open Images", QDir::homePath());
         if (url.isEmpty()) return;
-        slide_handler->setSlide(url, 254, 0);
+        slide_handler->setSlide(url, 254, 1);
     });
 
     window.setCentralWidget(view.get());

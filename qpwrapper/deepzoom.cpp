@@ -25,8 +25,9 @@ template <typename T> std::ostream& operator<<(std::ostream& os, std::vector<T> 
 }
 #endif
 
-DeepZoomGenerator::DeepZoomGenerator(std::string filepath, int tile_size, int overlap)
-    : m_tile_size(tile_size), m_overlap(overlap)
+DeepZoomGenerator::DeepZoomGenerator(std::string filepath, int tile_size, int overlap, ImageFormat format,
+                                     float quality)
+    : m_tile_size(tile_size), m_overlap(overlap), m_format(format), m_quality(quality)
 {
     m_reader = std::make_unique<Reader>(filepath);
     m_reader->open();
@@ -137,7 +138,8 @@ std::vector<unsigned char> DeepZoomGenerator::get_tile(int dz_level, int col, in
     // note: need use width and height in level 0 (see `qpwrapper's readRegion`)
     return m_reader->readRegion(m_level_0_dz_downsamples[dz_level], xx, yy,
                                 static_cast<int>(std::ceil(width * level_downsample)),
-                                static_cast<int>(std::ceil(height * level_downsample)), 0, 0);
+                                static_cast<int>(std::ceil(height * level_downsample)), 0, 0,
+                                static_cast<Reader::ImageFormat>(m_format), m_quality);
 
     // auto [originalWidth, originalHeight] = m_l_dimensions[0];
     // double factor = m_level_0_dz_downsamples[dz_level];
@@ -167,7 +169,8 @@ std::vector<unsigned char> DeepZoomGenerator::get_tile(int dz_level, int col, in
     // std::cout << "scaledX: " << scaledX << " scaledY: " << scaledY << " scaledWidth: " << scaledWidth
     //           << " scaledHeight: " << scaledHeight << std::endl;
 
-    // return m_reader->readRegion(factor, scaledX, scaledY, scaledWidth, scaledHeight, 0, 0);
+    // return m_reader->readRegion(factor, scaledX, scaledY, scaledWidth, scaledHeight, 0, 0,
+    //                             static_cast<Reader::ImageFormat>(m_format), m_quality);
 }
 
 std::tuple<std::pair<int, int>, int, std::pair<int, int>> DeepZoomGenerator::get_tile_coordinates(int dz_level, int col,
@@ -186,7 +189,8 @@ std::string DeepZoomGenerator::get_dzi() const
     auto const& [width, height] = m_l_dimensions[0];
     return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n \
 <Image xmlns = \"http://schemas.microsoft.com/deepzoom/2008\"\n \
-  Format=\"png\"\n \
+  Format=\"" +
+           std::string((m_format == ImageFormat::PNG) ? "png" : "jpg") + "\"\n \
   Overlap=\"" +
            std::to_string(m_overlap) + "\"\n \
   TileSize=\"" +

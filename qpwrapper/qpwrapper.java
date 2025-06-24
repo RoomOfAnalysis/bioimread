@@ -12,7 +12,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
+import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.MemoryCacheImageOutputStream;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ColorTools;
@@ -248,8 +252,8 @@ public class qpwrapper implements AutoCloseable {
      * @param name
      * @return PNG byte array
      */
-    public byte[] getAssociatedImage(String name) {
-        return bufferedImageToPNGBytes(server.getAssociatedImage(name));
+    public byte[] getAssociatedImage(String name, String format, float quality) {
+        return bufferedImageToBytes(server.getAssociatedImage(name), format, quality);
     }
 
     /**
@@ -266,10 +270,10 @@ public class qpwrapper implements AutoCloseable {
      * @param t
      * @return PNG byte array
      */
-    public byte[] getDefaultThumbnail(int z, int t) {
+    public byte[] getDefaultThumbnail(int z, int t, String format, float quality) {
         try {
             BufferedImage image = server.getDefaultThumbnail(z, t);
-            return bufferedImageToPNGBytes(image);
+            return bufferedImageToBytes(image, format, quality);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -374,7 +378,8 @@ public class qpwrapper implements AutoCloseable {
      * @see https://github.com/qupath/qupath/blob/main/qupath-core/src/main/java/qupath/lib/images/servers/AbstractTileableImageServer.java#L266
      * @implNote the newly added jars are for this method to work
      */
-    public byte[] readRegion(double downsample, int x, int y, int width, int height, int z, int t) {
+    public byte[] readRegion(double downsample, int x, int y, int width, int height, int z, int t, String format,
+            float quality) {
         // System.out.println(
         // String.format("readRegion: [downsample: %.4f, x: %d, y: %d, width: %d,
         // height: %d, z: %d, t: %d]",
@@ -382,7 +387,7 @@ public class qpwrapper implements AutoCloseable {
         try {
             BufferedImage image = server.readRegion(downsample, x, y, width, height, z,
                     t);
-            return bufferedImageToPNGBytes(image);
+            return bufferedImageToBytes(image, format, quality);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -409,8 +414,9 @@ public class qpwrapper implements AutoCloseable {
      * @apiNote since `bioformats`'s level always different from `openslide`'s,
      *          should use above `downsample` one
      */
-    public byte[] readRegion(int level, int x, int y, int width, int height, int z, int t) {
-        return readRegion(getDownsampleForResolution(level), x, y, width, height, z, t);
+    public byte[] readRegion(int level, int x, int y, int width, int height, int z, int t, String format,
+            float quality) {
+        return readRegion(getDownsampleForResolution(level), x, y, width, height, z, t, format, quality);
     }
 
     /**
@@ -428,7 +434,8 @@ public class qpwrapper implements AutoCloseable {
      * @apiNote better not use this method, since it breaks `ImageServer<T>`
      *          interface, use `readRegion` instead
      */
-    public byte[] readTile(int level, int x, int y, int width, int height, int z, int t) {
+    public byte[] readTile(int level, int x, int y, int width, int height, int z, int t, String format,
+            float quality) {
         // System.out.println(
         // String.format("readTile: [level: %d, x: %d, y: %d, width: %d, height: %d, z:
         // %d, t: %d]",
@@ -439,7 +446,7 @@ public class qpwrapper implements AutoCloseable {
                         .readTile(TileRequest.createInstance(server, level,
                                 ImageRegion.createInstance(
                                         x, y, width, height, z, t)));
-                return bufferedImageToPNGBytes(image);
+                return bufferedImageToBytes(image, format, quality);
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -448,19 +455,37 @@ public class qpwrapper implements AutoCloseable {
     }
 
     // seems like server's `readRegion` always returns RGB image, maybe no need to
-    // convert to PNG, but how about `isRGB`?
+    // convert to PNG/JPG, but how about `isRGB`?
     // https://github.com/qupath/qupath/blob/main/qupath-core/src/main/java/qupath/lib/images/servers/AbstractTileableImageServer.java#L266
-    private static byte[] bufferedImageToPNGBytes(BufferedImage image) {
+    private static byte[] bufferedImageToBytes(BufferedImage image, String format, float quality) {
         if (image == null)
             return null;
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try {
-            BufferedImage buffer = new BufferedImage(image.getWidth(null),
-                    image.getHeight(null), BufferedImage.TYPE_INT_ARGB);
-
-            buffer.createGraphics().drawImage(image, 0, 0, null);
-            ImageIO.write(buffer, "PNG", baos);
+            if (format.equals("PNG")) {
+                if (image.getType() != BufferedImage.TYPE_INT_ARGB) {
+                    BufferedImage buffer = new BufferedImage(image.getWidth(null),
+                            image.getHeight(null), BufferedImage.TYPE_INT_ARGB);
+                    buffer.createGraphics().drawImage(image, 0, 0, null);
+                    ImageIO.write(buffer, "PNG", baos);
+                } else
+                    ImageIO.write(image, "PNG", baos);
+            } else if (format.equals("JPG")) {
+                ImageWriter jpgWriter = ImageIO.getImageWritersByFormatName("jpg").next();
+                ImageWriteParam jpgWriteParam = jpgWriter.getDefaultWriteParam();
+                jpgWriteParam.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+                jpgWriteParam.setCompressionQuality(quality);
+                jpgWriter.setOutput(ImageIO.createImageOutputStream(baos));
+                if (image.getType() != BufferedImage.TYPE_INT_RGB) {
+                    BufferedImage buffer = new BufferedImage(image.getWidth(null),
+                            image.getHeight(null), BufferedImage.TYPE_INT_RGB);
+                    buffer.createGraphics().drawImage(image, 0, 0, null);
+                    jpgWriter.write(null, new IIOImage(buffer, null, null), jpgWriteParam);
+                } else
+                    jpgWriter.write(null, new IIOImage(image, null, null), jpgWriteParam);
+                jpgWriter.dispose();
+            }
             baos.close();
         } catch (IOException e) {
             e.printStackTrace();
